@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker'; // <-- Date picker
 import { useRouter, Stack } from 'expo-router';
-import { Save, Camera, Mail, Phone, User } from 'lucide-react-native';
+import { Save, Camera, Mail, Phone, User, Calendar } from 'lucide-react-native';
 import { Layout } from '../../components/ui/layout';
 import { Text } from '../../components/ui/text';
 import { Input } from '../../components/ui/input';
@@ -9,18 +10,50 @@ import { Button } from '../../components/ui/button';
 import { useStore } from '../../context/StoreContext';
 import { hapticFeedback } from '../../utils/haptics';
 
+const GENDER_OPTS = [
+  { id: 'Male', label: 'Male' },
+  { id: 'Female', label: 'Female' },
+  { id: 'Other', label: 'Other' },
+];
+
 export default function PersonalInfoScreen() {
   const router = useRouter();
   const { user, updateUser } = useStore();
 
-  const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [phone, setPhone] = useState(user?.phone || '');
+  // Local state for form
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Sync state with user from context/API
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+      setGender(user.gender || '');
+      setDateOfBirth(user.dateOfBirth ? new Date(user.dateOfBirth) : null);
+    }
+  }, [user]);
 
   const handleSave = () => {
     hapticFeedback.success();
-    updateUser({ name, email, phone });
+    updateUser({
+      name,
+      email,
+      phone,
+      gender,
+  dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : undefined,
+    });
     router.back();
+  };
+
+  const onChangeDate = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios'); // keep picker open on iOS
+    if (selectedDate) setDateOfBirth(selectedDate);
   };
 
   return (
@@ -37,7 +70,7 @@ export default function PersonalInfoScreen() {
       />
 
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-        {/* Avatar Section */}
+        {/* Avatar */}
         <View className="items-center mb-10">
           <View className="relative">
             <View className="w-32 h-32 rounded-full border-4 border-[#FF5500] p-1">
@@ -54,6 +87,7 @@ export default function PersonalInfoScreen() {
 
         {/* Form Fields */}
         <View className="gap-6">
+          {/* Name */}
           <View>
             <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
               Full Name
@@ -70,6 +104,7 @@ export default function PersonalInfoScreen() {
             </View>
           </View>
 
+          {/* Email */}
           <View>
             <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
               Email Address
@@ -88,22 +123,80 @@ export default function PersonalInfoScreen() {
             </View>
           </View>
 
+         {/* Phone */}
+            <View>
+              <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
+                Phone Number
+              </Text>
+              <View className="flex-row items-center bg-[#1A1A1A] rounded-2xl border border-white/10 px-4 h-14">
+                <Phone size={20} color="#6B7280" />
+                <Input
+                  value={phone}
+                  placeholder="Enter phone"
+                  keyboardType="phone-pad"
+                  className="flex-1 bg-transparent border-0 text-white font-bold ml-2 h-full"
+                  placeholderTextColor="#4B5563"
+                  editable={false} // <-- Make it uneditable
+                />
+              </View>
+            </View>
+
+
+          {/* Gender */}
           <View>
             <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-              Phone Number
+              Gender
             </Text>
-            <View className="flex-row items-center bg-[#1A1A1A] rounded-2xl border border-white/10 px-4 h-14">
-              <Phone size={20} color="#6B7280" />
-              <Input
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-                className="flex-1 bg-transparent border-0 text-white font-bold ml-2 h-full"
-                placeholderTextColor="#4B5563"
-              />
+            <View className="flex-row gap-3">
+              {GENDER_OPTS.map((opt) => {
+                const isSelected = gender?.toLowerCase() === opt.id.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    onPress={() => setGender(opt.id)}
+                    className={`flex-1 py-3 rounded-2xl border ${
+                      isSelected ? 'bg-[#FF5500] border-[#FF5500]' : 'bg-[#1A1A1A] border-white/10'
+                    }`}
+                  >
+                    <Text className={`text-center font-bold ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
+
+          {/* Date of Birth */}
+         <View>
+            <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
+              Date of Birth
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              className="flex-row items-center bg-[#1A1A1A] rounded-2xl border border-white/10 px-4 h-14"
+            >
+              <Calendar size={20} color="#6B7280" />
+
+              <View className="flex-1 justify-center ml-2">
+            <Text className="text-white font-bold">
+              {dateOfBirth ? dateOfBirth.toLocaleDateString() : 'Select Date'}
+            </Text>
+          </View>
+  </TouchableOpacity>
+
+  {showDatePicker && (
+    <DateTimePicker
+      value={dateOfBirth || new Date()}
+      mode="date"
+      display="default"
+      onChange={onChangeDate}
+      maximumDate={new Date()}
+    />
+  )}
+</View>
+
         </View>
       </ScrollView>
 

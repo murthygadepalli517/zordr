@@ -24,6 +24,8 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
+  dateOfBirth:string;
+  gender:string;
   zCoins: number;
   campus?: string;
   dietaryPreference?: string;

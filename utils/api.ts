@@ -19,14 +19,27 @@ interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
  */
 export async function apiFetch(endpoint: string, options: ApiRequestOptions = {}, token?: string) {
   const url = `${API_BASE_URL}/${endpoint}`;
-
+console.log(`🔗 API Call: ${options.method || 'GET'} ${url}`);
   const defaultHeaders = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 
+  const serializedBody =
+    options.body && typeof options.body !== 'string'
+      ? JSON.stringify(options.body)
+      : options.body;
+
   try {
     console.log(`🌐 API Request: ${url}`);
+
+     console.log(`📤 Method: ${options.method || 'GET'}`);
+    console.log(`📤 Headers:`, {
+      ...defaultHeaders,
+      ...options.headers,
+    });
+        console.log(`📤 Body:`, serializedBody ? JSON.parse(serializedBody as string) : null);
+
 
     const response = await fetch(url, {
       ...options,

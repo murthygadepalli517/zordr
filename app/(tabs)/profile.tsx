@@ -86,16 +86,19 @@ export default function ProfileScreen() {
     user?.dietaryPreference,
   ]);
 
-  React.useEffect(() => {
-    if (isError && error) {
-      if (error.message.includes('token')) {
-        Alert.alert('Session Expired', 'Please log in again.');
-        logout();
-      } else {
-        console.error('Profile fetch error:', error.message);
-      }
+React.useEffect(() => {
+  if (!store.isAuthenticated) return; // <-- ignore errors if logged out
+
+  if (isError && error) {
+    if (error.message.includes('token')) {
+      Alert.alert('Session Expired', 'Please log in again.');
+      logout();
+    } else {
+      console.error('Profile fetch error:', error.message);
     }
-  }, [isError, error, logout]);
+  }
+}, [isError, error, logout, store.isAuthenticated]);
+
 
   const handleLogout = () => {
     hapticFeedback.warning();

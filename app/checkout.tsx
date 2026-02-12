@@ -17,7 +17,8 @@ export default function CheckoutScreen() {
 
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<
-    { time: string; available: boolean; remaining: number; isHighTraffic: boolean }[]
+    { time: string; available: boolean; remaining: number; isHighTraffic: boolean,     limit: number; 
+ }[]
   >([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Prepaid'>('COD'); // Default COD
@@ -132,10 +133,10 @@ export default function CheckoutScreen() {
 
           setTimeSlots(slots);
           // Select first available slot if none selected
-          if (!selectedTime && slots.length > 0) {
-            const firstAvailable = slots.find((s) => s.available);
-            if (firstAvailable) setSelectedTime(firstAvailable.time);
-          }
+          // if (!selectedTime && slots.length > 0) {
+          //   const firstAvailable = slots.find((s) => s.available);
+          //   if (firstAvailable) setSelectedTime(firstAvailable.time);
+          // }
         } catch (error) {
           console.error('Failed to fetch slots', error);
         } finally {
@@ -269,53 +270,110 @@ export default function CheckoutScreen() {
           ) : timeSlots.length === 0 ? (
             <Text className="text-red-500">No slots available (Outlet Closed)</Text>
           ) : (
-            (showAllSlots ? timeSlots : timeSlots.slice(0, 9)).map((slot) => {
-              const isSelected = selectedTime === slot.time;
-              const isFull = !slot.available;
-              const isHighTraffic = slot.isHighTraffic;
+      (showAllSlots ? timeSlots : timeSlots.slice(0, 9)).map((slot) => {
+        const isSelected = selectedTime === slot.time;
 
-              return (
-                <TouchableOpacity
-                  key={slot.time}
-                  disabled={isFull}
-                  onPress={() => {
-                    hapticFeedback.selection();
-                    setSelectedTime(slot.time);
-                  }}
-                  activeOpacity={0.8}
-                  style={
-                    isSelected
-                      ? {
-                        shadowColor: '#FF5500',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 8,
-                        elevation: 6,
-                      }
-                      : {}
-                  }
-                  className={`w-[30%] h-12 rounded-xl items-center justify-center border ${isFull
-                    ? 'bg-white/5 border-white/5 opacity-40' // Disabled Style
-                    : isSelected
-                      ? 'bg-[#FF5500] border-[#FF5500]' // Selected Style
-                      : isHighTraffic
-                        ? 'bg-[#1A1A1A] border-gray-600' // High Traffic
-                        : 'bg-[#1A1A1A] border-white/5' // Default Style
-                    }`}
-                >
-                  <Text
-                    className={`font-bold ${isFull
-                      ? 'text-gray-500 line-through'
-                      : isSelected
-                        ? 'text-white'
-                        : 'text-gray-400'
-                      }`}
-                  >
-                    {slot.time}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
+        const remaining = slot.remaining ?? 0;
+      const limit = slot.limit ?? 10;
+
+      const bookedPercentage = ((limit - remaining) / limit) * 100;
+      const availablePercentage = (remaining / limit) * 100;
+        const isFull = remaining === 0 || !slot.available;
+        const isLowStock = remaining > 0 && remaining < 5;
+        const isHighTraffic = slot.isHighTraffic;
+
+        return (
+          <TouchableOpacity
+            key={slot.time}
+            disabled={isFull}
+            onPress={() => {
+              hapticFeedback.selection();
+              setSelectedTime(slot.time);
+            }}
+            activeOpacity={0.8}
+            className={`w-[30%] h-16 rounded-xl items-center justify-center border relative overflow-hidden ${
+        isFull
+          ? 'bg-gray-800 border-gray-700 opacity-60'
+          : isSelected
+          ? 'bg-[#FF5500] border-[#FF5500]'  // FULL ORANGE FILL
+          : isHighTraffic
+          ? 'bg-[#1A1408] border-orange-500/50'  
+          : availablePercentage === 100
+          ? 'border-emerald-500 bg-[#1A1A1A]'
+          : 'border-white/10 bg-[#1A1A1A]'
+      }`}
+
+          >
+            {/* Time */}
+            <Text
+        className={`font-bold z-10 ${
+          isFull
+            ? 'text-gray-500'
+            : isSelected
+            ? 'text-white'
+            : 'text-white'
+        }`}
+      >
+        {slot.time}
+      </Text>
+
+
+            {/* Sub Text */}
+            {!isFull &&  (
+            <Text
+          className={`text-[9px] mt-1 font-bold z-10 ${
+            isSelected
+              ? 'text-black/80'  // Visible on orange
+              : isLowStock
+              ? 'text-red-400'
+              : 'text-gray-500'
+          }`}
+        >
+                {isLowStock
+                  ? `Only ${remaining} left`
+                  : isHighTraffic
+        ? `Busy • ${remaining} left`
+                  : `${remaining}/${limit} available`}
+              </Text>
+            )}
+
+            {/* FULL Label */}
+            {isFull && (
+              <Text className="text-[9px] mt-1 text-gray-500 font-bold">
+                FULL
+              </Text>
+            )}
+
+            {/* High Traffic Badge */}
+            {isHighTraffic && !isFull && !isSelected && (
+        <View className="absolute top-0 right-0 bg-orange-500 px-2 py-[2px] rounded-bl-lg">
+          <Text className="text-[8px] text-black font-black tracking-wide">
+            HIGH TRAFFIC
+          </Text>
+        </View>
+      )}
+
+
+            {/* Availability Bar */}
+            {/* Booking Fill Background */}
+      {!isFull && bookedPercentage > 0 && (
+        <View
+          style={{ width: `${bookedPercentage}%` }}
+          className={`absolute left-0 top-0 bottom-0 rounded-xl ${
+            availablePercentage > 50
+              ? 'bg-yellow-500/20'
+              : availablePercentage > 10
+              ? 'bg-orange-500/25'
+              : 'bg-red-500/20'
+          }`}
+        />
+      )}
+
+          </TouchableOpacity>
+        );
+      })
+
+
           )}
         </View>
 

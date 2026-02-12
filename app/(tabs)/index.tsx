@@ -755,50 +755,68 @@ export default function HomeScreen() {
 
 
       {/* FLOATING CART BUTTON - Swiggy Style */}
-      {cart.length > 0 && (
-        <Animated.View
-          entering={FadeInDown.springify().damping(15)}
-          exiting={FadeOutDown.springify().damping(15)}
-          className="absolute left-4 right-4 bg-primary rounded-2xl shadow-2xl"
+  {cart.length > 0 && (
+  <Animated.View
+    entering={FadeInDown.springify().damping(15)}
+    exiting={FadeOutDown.springify().damping(15)}
+    style={{
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      bottom: Platform.OS === 'ios' ? 95 : 75,
+      backgroundColor: '#f97316', // ensure visible bg
+      borderRadius: 24,
+      shadowColor: '#f97316',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 10,
+      zIndex: 9999,
+      overflow: 'hidden', // allow children to render fully
+    }}
+  >
+    <TouchableOpacity
+      onPress={() => {
+        hapticFeedback.selection();
+        router.push('/(tabs)/cart');
+      }}
+      activeOpacity={0.9}
+      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}
+    >
+      {/* Left: Shopping bag icon + quantity + label */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View
           style={{
-            bottom: Platform.OS === 'ios' ? 95 : 75,
-            shadowColor: '#f97316',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 10,
-            zIndex: 9999,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.selection();
-              router.push('/(tabs)/cart');
-            }}
-            activeOpacity={0.9}
-            className="flex-row items-center justify-between px-5 py-4"
-          >
-            <View className="flex-row items-center gap-3">
-              <View className="bg-white/20 rounded-full w-10 h-10 items-center justify-center">
-                <ShoppingBag size={20} color="white" />
-              </View>
-              <View>
-                <Text className="text-white font-bold text-sm">
-                  {cart.reduce((acc, item) => acc + item.quantity, 0)}{' '}
-                  {cart.reduce((acc, item) => acc + item.quantity, 0) === 1 ? 'item' : 'items'}
-                </Text>
-                <Text className="text-white/70 text-xs">Tap to view cart</Text>
-              </View>
-            </View>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-white font-black text-lg">
-                ₹{cart.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(0)}
-              </Text>
-              <ChevronRight size={20} color="white" />
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+          <ShoppingBag size={20} color="#fff" />
+        </View>
+        <View>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+            {cart.reduce((acc, item) => acc + item.quantity, 0)}{' '}
+            {cart.reduce((acc, item) => acc + item.quantity, 0) === 1 ? 'item' : 'items'}
+          </Text>
+          <Text style={{ color: '#fff', fontSize: 12 }}>Tap to view cart</Text>
+        </View>
+      </View>
+
+      {/* Right: Total price + arrow */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16 }}>
+          ₹{cart.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(0)}
+        </Text>
+        <ChevronRight size={20} color="#fff" />
+      </View>
+    </TouchableOpacity>
+  </Animated.View>
+)}
+
     </View>
   );
 }

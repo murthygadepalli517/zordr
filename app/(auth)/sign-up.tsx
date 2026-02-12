@@ -21,6 +21,10 @@ import { useStore } from '../../context/StoreContext';
 import { apiFetch } from '../../utils/api';
 import { useAlert } from '../../context/AlertContext';
 import { hapticFeedback } from '../../utils/haptics';
+import { Modal } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Calendar } from 'lucide-react-native';
+
 
 // Hardcoded campuses removed - fetching dynamically
 // const CAMPUSES = ...
@@ -30,6 +34,13 @@ const DIETARY_OPTS = [
   { id: 'Non-Veg', icon: '🍗', label: 'Non-Veg' },
   { id: 'Vegan', icon: '🥗', label: 'Vegan' },
 ];
+
+const GENDER_OPTS = [
+  { id: 'Male', label: 'Male' },
+  { id: 'Female', label: 'Female' },
+  { id: 'Other', label: 'Other' },
+];
+
 
 const ALLERGIES_OPTS = ['Nuts', 'Dairy', 'Gluten', 'Soy', 'Eggs', 'Shellfish'];
 
@@ -42,6 +53,11 @@ export default function SignUpScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [campusSearch, setCampusSearch] = useState('');
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
+
+  
+
   // Input Focus States
   const [activeInput, setActiveInput] = useState<string | null>(null);
 
@@ -50,6 +66,8 @@ export default function SignUpScreen() {
     email: '',
     dietary: 'Veg',
     allergies: [] as string[],
+      gender: '',
+    dateOfBirth: '',
     campus: '',
   });
 
@@ -72,8 +90,11 @@ export default function SignUpScreen() {
             name: formData.name,
             email: formData.email,
             dietary: formData.dietary,
+            gender: formData.gender,
+            dateOfBirth: formData.dateOfBirth,
             campus: formData.campus,
             allergies: formData.allergies,
+
           },
         },
         authToken || ''
@@ -88,7 +109,10 @@ export default function SignUpScreen() {
           dietaryPreference: formData.dietary,
           allergies: formData.allergies,
           campus: formData.campus,
+          dateOfBirth:formData.dateOfBirth,
+          gender:formData.gender,
           zCoins: 0,
+          
         },
         token: authToken || '',
       });
@@ -119,7 +143,7 @@ export default function SignUpScreen() {
   };
 
   const isNextDisabled = () => {
-    if (currentStep === 0) return !formData.name || !formData.email;
+    if (currentStep === 0) return !formData.name || !formData.email || !formData.gender || !formData.dateOfBirth;
     if (currentStep === 1) return !formData.dietary;
     if (currentStep === 2) return !formData.campus;
     return false;
@@ -201,7 +225,7 @@ export default function SignUpScreen() {
                 </View>
 
                 <View className="space-y-6">
-                  <View>
+                  <View className='mb-2'>
                     <Text className="text-[10px] font-bold text-gray-500 uppercase mb-2 ml-1 tracking-widest">
                       Full Name
                     </Text>
@@ -216,7 +240,7 @@ export default function SignUpScreen() {
                       selectionColor="#FF5500"
                     />
                   </View>
-                  <View>
+                  <View className='mb-2'>
                     <Text className="text-[10px] font-bold text-gray-500 uppercase mb-2 ml-1 tracking-widest">
                       Email Address
                     </Text>
@@ -234,6 +258,61 @@ export default function SignUpScreen() {
                     />
                   </View>
                 </View>
+
+
+                              <View className='mb-2'>
+                <Text className="text-[10px] font-bold text-gray-500 uppercase mb-3 ml-1 tracking-widest">
+                  Gender
+                </Text>
+                <View className="flex-row gap-3">
+                  {GENDER_OPTS.map((opt) => {
+                    const isSelected = formData.gender === opt.id;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => {
+                          hapticFeedback.selection();
+                          setFormData({ ...formData, gender: opt.id });
+                        }}
+                        className={`flex-1 py-3 rounded-2xl border ${
+                          isSelected
+                            ? 'bg-primary border-primary'
+                            : 'bg-[#1A1A1A] border-white/10'
+                        }`}
+                      >
+                        <Text
+                          className={`text-center font-bold ${
+                            isSelected ? 'text-white' : 'text-gray-400'
+                          }`}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                                 </View>
+
+                          <View>
+                            <Text className="text-[10px] font-bold text-gray-500 uppercase mb-2 ml-1 tracking-widest">
+                              Date of Birth
+                            </Text>
+
+                            <View className="relative">
+                              <TouchableOpacity
+                                activeOpacity={0.9}
+                                onPress={() => setShowDatePicker(true)}
+                                className="h-14 bg-[#1A1A1A] rounded-2xl px-4 flex-row items-center justify-between border border-white/10"
+                              >
+                                <Text className={`font-bold text-lg ${formData.dateOfBirth ? 'text-white' : 'text-gray-500'}`}>
+                                  {formData.dateOfBirth || 'Select Date'}
+                                </Text>
+                                <Calendar size={20} color="#6B7280" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+
+
               </Animated.View>
             )}
 
@@ -352,6 +431,29 @@ export default function SignUpScreen() {
               </Animated.View>
             )}
           </ScrollView>
+
+
+
+                   {showDatePicker && (
+                      <DateTimePicker
+                        value={tempDate}
+                        mode="date"
+                        display="default"
+                        maximumDate={new Date()}
+                        onChange={(event, selectedDate) => {
+                          if (selectedDate) {
+                            setShowDatePicker(false);
+                            setTempDate(selectedDate);
+
+                            const formatted = selectedDate.toISOString().split('T')[0];
+                            setFormData({ ...formData, dateOfBirth: formatted });
+                          } else {
+                            setShowDatePicker(false);
+                          }
+                        }}
+                      />
+                    )}
+
 
           {/* Footer */}
           <View className="p-6 bg-[#0D0D0D] border-t border-white/5">
