@@ -122,14 +122,17 @@ export default function CheckoutScreen() {
           const slots = await getOutletSlots(cart[0].outletId);
 
           // Inject "Pickup Now" if applicable
-          if (allReadyToPick) {
-            slots.unshift({
-              time: 'Now',
-              available: true,
-              remaining: 99,
-              isHighTraffic: false,
-            });
-          }
+                          if (allReadyToPick) {
+                    const firstSlotLimit = slots[0]?.limit ?? 10; // fallback limit if not provided
+                    slots.unshift({
+                      time: 'Now',
+                      available: true,
+                      remaining: firstSlotLimit,
+                      isHighTraffic: false,
+                      limit: firstSlotLimit,
+                    });
+                  }
+
 
           setTimeSlots(slots);
           // Select first available slot if none selected
@@ -151,7 +154,7 @@ export default function CheckoutScreen() {
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const tax = Math.round(subtotal * 0.08);
   const discount = appliedCoupon ? appliedCoupon.discount : 0;
-  const total = Math.max(0, subtotal + tax - discount); // Zero Delivery Fee
+  const total = Math.max(0, subtotal - discount); // Zero Delivery Fee
 
   const handleOrderSuccess = async () => {
     if (selectedTime) {
@@ -258,10 +261,10 @@ export default function CheckoutScreen() {
           <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest">
             Select Pickup Slot
           </Text>
-          <View className="flex-row items-center gap-1">
+          {/* <View className="flex-row items-center gap-1">
             <View className="w-2 h-2 rounded-full bg-gray-600" />
             <Text className="text-[10px] text-gray-500 font-bold">Grey = High Traffic</Text>
-          </View>
+          </View> */}
         </View>
 
         <View className="flex-row flex-wrap gap-3 mb-4">
@@ -589,10 +592,10 @@ export default function CheckoutScreen() {
             <Text className="text-gray-400">Item Total</Text>
             <Text className="text-white font-medium">₹{subtotal}</Text>
           </View>
-          <View className="flex-row justify-between mb-2">
+          {/* <View className="flex-row justify-between mb-2">
             <Text className="text-gray-400">Taxes & Charges</Text>
             <Text className="text-white font-medium">₹{tax}</Text>
-          </View>
+          </View> */}
           <View className="flex-row justify-between mb-2">
             <Text className="text-success text-xs">Pickup Delivery Fee</Text>
             <Text className="text-success font-medium">FREE</Text>

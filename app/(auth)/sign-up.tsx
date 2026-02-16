@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check, Search, User, Utensils, MapPin } from 'lucide-react-native';
 import Animated, { FadeInRight, FadeOutLeft, FadeIn, ZoomIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Layout } from '../../components/ui/layout';
 import { Text } from '../../components/ui/text';
@@ -149,11 +150,21 @@ export default function SignUpScreen() {
     return false;
   };
 
+  // const filteredCampuses = campuses.filter(
+  //   (c) =>
+  //     c.name.toLowerCase().includes(campusSearch.toLowerCase()) ||
+  //     c.location.toLowerCase().includes(campusSearch.toLowerCase())
+  // );
+
+
   const filteredCampuses = campuses.filter(
-    (c) =>
-      c.name.toLowerCase().includes(campusSearch.toLowerCase()) ||
-      c.location.toLowerCase().includes(campusSearch.toLowerCase())
-  );
+  (c) =>
+    c.name.toLowerCase().includes(campusSearch.toLowerCase()) ||
+    c.location.toLowerCase().includes(campusSearch.toLowerCase())
+);
+
+const campusesToDisplay =
+  campusSearch.length === 0 ? campuses : filteredCampuses;
 
   if (showSuccess) {
     return (
@@ -204,11 +215,20 @@ export default function SignUpScreen() {
           </View>
 
           {/* Main Content */}
-          <ScrollView
+          {/* <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+          > */}
+
+          <KeyboardAwareScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
+            keyboardShouldPersistTaps="handled"
+            enableOnAndroid
+            extraScrollHeight={100}
+            showsVerticalScrollIndicator={false}
           >
+
             {/* STEP 1: IDENTITY */}
             {currentStep === 0 && (
               <Animated.View entering={FadeInRight} exiting={FadeOutLeft} className="space-y-8">
@@ -379,58 +399,85 @@ export default function SignUpScreen() {
             )}
 
             {/* STEP 3: CAMPUS */}
-            {currentStep === 2 && (
-              <Animated.View entering={FadeInRight} exiting={FadeOutLeft} className="space-y-6">
-                <View className="items-center mt-4">
-                  <View className="w-20 h-20 bg-[#1A1A1A] rounded-full items-center justify-center mb-6 border border-white/10">
-                    <MapPin size={32} color="#FF5500" />
-                  </View>
-                  <Text className="text-3xl font-black text-white text-center mb-2">
-                    Select Campus
-                  </Text>
-                  <Text className="text-gray-500 text-center font-medium">
-                    Where are you ordering from today?
-                  </Text>
-                </View>
+           {/* STEP 3: CAMPUS */}
+{currentStep === 2 && (
+  <Animated.View entering={FadeInRight} exiting={FadeOutLeft} className="space-y-6">
+    <View className="items-center mt-4">
+      <View className="w-20 h-20 bg-[#1A1A1A] rounded-full items-center justify-center mb-6 border border-white/10">
+        <MapPin size={32} color="#FF5500" />
+      </View>
+      <Text className="text-3xl font-black text-white text-center mb-2">
+        Select Campus
+      </Text>
+      <Text className="text-gray-500 text-center font-medium">
+        Where are you ordering from today?
+      </Text>
+    </View>
 
-                <View className="relative mb-2">
-                  <View className="absolute left-4 top-[18px] z-10">
-                    <Search size={20} color="#6B7280" />
-                  </View>
-                  <TextInput
-                    placeholder="Search college (e.g. KITSW)..."
-                    placeholderTextColor="#4b5563"
-                    value={campusSearch}
-                    onChangeText={setCampusSearch}
-                    onFocus={() => setActiveInput('search')}
-                    onBlur={() => setActiveInput(null)}
-                    className={`h-14 bg-[#1A1A1A] rounded-2xl pl-12 pr-4 text-white font-bold text-base border ${activeInput === 'search' ? 'border-primary' : 'border-white/10'}`}
-                    selectionColor="#FF5500"
-                  />
-                </View>
+    {/* Search Input */}
+    <View className="relative">
+      <View className="absolute left-4 top-[18px] z-10">
+        <Search size={20} color="#6B7280" />
+      </View>
 
-                <ScrollView className="h-64" showsVerticalScrollIndicator={false}>
-                  {filteredCampuses.map((campus) => (
-                    <TouchableOpacity
-                      key={campus.name}
-                      onPress={() => {
-                        hapticFeedback.selection();
-                        setFormData({ ...formData, campus: campus.name });
-                      }}
-                      className={`p-4 rounded-2xl mb-2 border ${formData.campus === campus.name ? 'bg-primary/10 border-primary' : 'bg-[#1A1A1A] border-white/5'}`}
-                    >
-                      <Text
-                        className={`font-bold text-lg ${formData.campus === campus.name ? 'text-primary' : 'text-white'}`}
-                      >
-                        {campus.name}
-                      </Text>
-                      <Text className="text-gray-500 text-xs mt-1">{campus.location}, {campus.city}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </Animated.View>
-            )}
+      <TextInput
+        placeholder="Search college (e.g. KITSW)..."
+        placeholderTextColor="#4b5563"
+        value={campusSearch}
+        onChangeText={(text) => {
+          setCampusSearch(text);
+          setFormData({ ...formData, campus: '' }); // reset selection while typing
+        }}
+        onFocus={() => setActiveInput('search')}
+        onBlur={() => setTimeout(() => setActiveInput(null), 150)}
+        className={`h-14 bg-[#1A1A1A] rounded-2xl pl-12 pr-4 text-white font-bold text-base border ${
+          activeInput === 'search' ? 'border-primary' : 'border-white/10'
+        }`}
+        selectionColor="#FF5500"
+      />
+
+      {/* Dropdown Results */}
+      {/* {campusSearch.length > 0 && filteredCampuses.length > 0 && ( */}
+      {activeInput === 'search' && campusesToDisplay.length > 0 && (
+
+          <View className="mt-2 bg-[#1A1A1A] rounded-2xl border border-white/10 max-h-60">
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {/* {filteredCampuses.map((campus) => ( */}
+            {campusesToDisplay.map((campus) => (
+
+              <TouchableOpacity
+                key={campus.name}
+                onPress={() => {
+                  hapticFeedback.selection();
+                  setFormData({ ...formData, campus: campus.name });
+                  setCampusSearch(campus.name); // fill input
+                }}
+                className="p-4 border-b border-white/5"
+              >
+                <Text className="font-bold text-white">
+                  {campus.name}
+                </Text>
+                <Text className="text-gray-500 text-xs">
+                  {campus.location}, {campus.city}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
+        </View>
+      )}
+    </View>
+
+    {/* Selected Campus Preview */}
+    {formData.campus !== '' && (
+      <View className="mt-6 p-4 bg-primary/10 border border-primary rounded-2xl">
+        <Text className="text-primary font-bold text-lg">
+          Selected: {formData.campus}
+        </Text>
+      </View>
+    )}
+  </Animated.View>
+)}
+          </KeyboardAwareScrollView>
 
 
 

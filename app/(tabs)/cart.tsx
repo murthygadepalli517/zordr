@@ -51,7 +51,9 @@ export default function CartScreen() {
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const tax = subtotal * TAX_RATE;
   const discount = usePoints ? POINTS_DISCOUNT_AMOUNT : 0;
-  const total = Math.max(0, subtotal + tax - discount);
+  // const total = Math.max(0, subtotal + tax - discount);
+    const total = Math.max(0, subtotal  - discount);
+
 
   const canRedeemPoints = (stats?.zCoins || 0) >= POINTS_COST;
 
@@ -223,10 +225,10 @@ export default function CartScreen() {
             </View>
           )}
 
-          <View className="flex-row justify-between pb-3 border-b border-white/10">
+          {/* <View className="flex-row justify-between pb-3 border-b border-white/10">
             <Text className="text-gray-400">Tax (5%)</Text>
             <Text className="text-white font-medium">₹{tax.toFixed(2)}</Text>
-          </View>
+          </View> */}
 
           <View className="flex-row justify-between pt-2 items-center">
             <Text className="text-xl font-black text-white">Total</Text>
