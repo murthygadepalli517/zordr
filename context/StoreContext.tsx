@@ -28,6 +28,8 @@ export interface UserProfile {
   gender:string;
   zCoins: number;
   campus?: string;
+    profileImage?: string; // ✅ ADD THIS
+
   dietaryPreference?: string;
   allergies?: string[];
   notificationPreferences?: {
@@ -153,6 +155,8 @@ interface StoreContextType {
 
   favorites: string[];
   toggleFavorite: (id: string) => void;
+  favoriteItems: MenuItem[];
+
 
   outlets: Outlet[];
   campuses: Campus[];
@@ -253,12 +257,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const cart = cartData?.items || [];
 
-  const { data: favoritesData = [] } = useQuery({
-    queryKey: ['favorites'],
-    queryFn: () => apiFetch('favorites', {}, authToken || ''),
-    enabled: !!authToken,
-  });
-  const favorites = favoritesData.map((item: any) => item.id);
+const { data: favoritesData = [] } = useQuery<MenuItem[]>({
+  queryKey: ['favorites'],
+  queryFn: () => apiFetch('favorites', {}, authToken || ''),
+  enabled: !!authToken,
+});
+
+const favorites = favoritesData.map((item) => item.id);
+const favoriteItems = favoritesData;
+
 
   const { data: orders = [] } = useQuery({
     queryKey: ['orders'],
@@ -494,18 +501,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
   });
 
-  const updateUserMutation = useMutation({
-    mutationFn: (data: any) =>
-      apiFetch('user/profile', { method: 'PUT', body: data }, authToken || ''),
-    onSuccess: (newData) => {
-      setUser((prev) => {
-        if (!prev) return null;
-        const updated = { ...prev, ...newData };
-        AsyncStorage.setItem('userData', JSON.stringify(updated));
-        return updated;
-      });
-    },
-  });
+  // const updateUserMutation = useMutation({
+  //   mutationFn: (data: any) =>
+  //     apiFetch('user/profile', { method: 'PUT', body: data }, authToken || ''),
+  //   onSuccess: (newData) => {
+  //     setUser((prev) => {
+  //       if (!prev) return null;
+  //       const updated = { ...prev, ...newData };
+  //       AsyncStorage.setItem('userData', JSON.stringify(updated));
+  //       return updated;
+  //     });
+  //   },
+  // });
+
+
+const updateUserMutation = useMutation({
+  mutationFn: async (data: Partial<UserProfile>) => {
+    return await apiFetch(
+      'user/profile',
+      {
+        method: 'PUT',
+        body: data,
+      },
+      authToken || ''
+    );
+  },
+  onSuccess: async (newData) => {
+    setUser((prev) => {
+      if (!prev) return null;
+
+      const updatedUser: UserProfile = {
+        ...prev,
+        ...newData,
+        profileImage: newData.profileImage ?? prev.profileImage,
+      };
+
+      AsyncStorage.setItem('userData', JSON.stringify(updatedUser)).catch(
+        console.error
+      );
+
+      return updatedUser;
+    });
+  },
+});
+
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) =>
@@ -660,6 +699,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     favorites,
     toggleFavorite: (id) => toggleFavoriteMutation.mutate(id),
+    favoriteItems,
 
     outlets,
     campuses,

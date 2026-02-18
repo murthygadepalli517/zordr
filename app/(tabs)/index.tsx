@@ -726,64 +726,64 @@ export default function HomeScreen() {
                           );
                         })
                       ) : (
-                        // <View className="py-10 items-center">
-                        //   <Text className="text-gray-500 text-center">
-                        //     No items found in this category.
-                        //   </Text>
-                        //   <Text className="text-gray-600 text-xs mt-2">
-                        //     Try selecting another category or outlet.
-                        //   </Text>
-                        // </View>
+                        <View className="py-10 items-center">
+                          <Text className="text-gray-500 text-center">
+                            No items found in this category.
+                          </Text>
+                          <Text className="text-gray-600 text-xs mt-2">
+                            Try selecting another category or outlet.
+                          </Text>
+                        </View>
 
 
 
-                             <Animated.View
-                          entering={FadeInDown.duration(400)}
-                          className="py-16 px-6"
-                        >
-                          <View className="bg-[#111111] border border-white/5 rounded-3xl p-8 items-center shadow-2xl shadow-black">
+                        //      <Animated.View
+                        //   entering={FadeInDown.duration(400)}
+                        //   className="py-16 px-6"
+                        // >
+                        //   <View className="bg-[#111111] border border-white/5 rounded-3xl p-8 items-center shadow-2xl shadow-black">
 
-                            {/* Illustration */}
-                            <Image
-                              source={{
-                                uri: 'https://cdn-icons-png.flaticon.com/512/1046/1046857.png',
-                              }}
-                              style={{
-                                width: 140,
-                                height: 140,
-                                marginBottom: 24,
-                                opacity: 0.9,
-                              }}
-                              resizeMode="contain"
-                            />
+                        //     {/* Illustration */}
+                        //     <Image
+                        //       source={{
+                        //         uri: 'https://cdn-icons-png.flaticon.com/512/1046/1046857.png',
+                        //       }}
+                        //       style={{
+                        //         width: 140,
+                        //         height: 140,
+                        //         marginBottom: 24,
+                        //         opacity: 0.9,
+                        //       }}
+                        //       resizeMode="contain"
+                        //     />
 
-                            {/* Title */}
-                            <Text className="text-white text-lg font-bold mb-2">
-                              No dishes available
-                            </Text>
+                        //     {/* Title */}
+                        //     <Text className="text-white text-lg font-bold mb-2">
+                        //       No dishes available
+                        //     </Text>
 
-                            {/* Subtitle */}
-                            <Text className="text-gray-400 text-xs text-center leading-5 mb-6">
-                              Looks like this outlet doesn’t have items in this category right now.
-                            </Text>
+                        //     {/* Subtitle */}
+                        //     <Text className="text-gray-400 text-xs text-center leading-5 mb-6">
+                        //       Looks like this outlet doesn’t have items in this category right now.
+                        //     </Text>
 
-                            {/* Action Button */}
-                            <TouchableOpacity
-                              onPress={() => {
-                                setActiveCategory('All');
-                                setActiveFilter(null);
-                                setSearchQuery('');
-                              }}
-                              activeOpacity={0.8}
-                              className="bg-primary px-6 py-3 rounded-full"
-                            >
-                              <Text className="text-white font-bold text-xs">
-                                Browse All Items
-                              </Text>
-                            </TouchableOpacity>
+                        //     {/* Action Button */}
+                        //     <TouchableOpacity
+                        //       onPress={() => {
+                        //         setActiveCategory('All');
+                        //         setActiveFilter(null);
+                        //         setSearchQuery('');
+                        //       }}
+                        //       activeOpacity={0.8}
+                        //       className="bg-primary px-6 py-3 rounded-full"
+                        //     >
+                        //       <Text className="text-white font-bold text-xs">
+                        //         Browse All Items
+                        //       </Text>
+                        //     </TouchableOpacity>
 
-                          </View>
-                        </Animated.View>
+                        //   </View>
+                        // </Animated.View>
 
                       )}
                     </View>

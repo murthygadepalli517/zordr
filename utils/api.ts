@@ -18,11 +18,15 @@ interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
  * @param token Optional JWT token for authenticated requests
  */
 export async function apiFetch(endpoint: string, options: ApiRequestOptions = {}, token?: string) {
+    const isFormData = options.body instanceof FormData;
+
   const url = `${API_BASE_URL}/${endpoint}`;
 console.log(`🔗 API Call: ${options.method || 'GET'} ${url}`);
   const defaultHeaders = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...options.headers,
   };
 
   const serializedBody =

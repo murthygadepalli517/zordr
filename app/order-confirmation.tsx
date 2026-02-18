@@ -304,7 +304,7 @@ export default function OrderConfirmationScreen() {
 
           {/* QR Scanner Button - only visible when order is ready */}
           <TouchableOpacity
-            onPress={() => router.push('/qr-scanner')}
+            onPress={() => router.push(`/qr-scanner?orderId=${activeOrder.id}`)}
             activeOpacity={0.8}
             className="w-[85%] bg-white rounded-2xl h-14 flex-row items-center justify-center gap-3 shadow-lg mb-6"
           >

@@ -1,40 +1,157 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { X } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useStore } from '../context/StoreContext';
 
 export default function QRScannerScreen() {
   const router = useRouter();
+  const { orderId } = useLocalSearchParams();
+  const { authToken } = useStore();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    // Request permission on mount
     if (!permission?.granted && permission?.canAskAgain) {
       requestPermission();
     }
   }, []);
+const handleBarCodeScanned = async ({ data }: any) => {
+  if (scanned || verifying) {
+    console.log("⚠️ Ignored scan (already scanning or verifying)");
+    return;
+  }
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
-    if (scanned) return;
+  console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("📷 STEP 1: QR SCANNED");
+  console.log("Raw QR Data:", data);
+  console.log("Route orderId:", orderId);
+  console.log("Auth Token exists:", !!authToken);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-    setScanned(true);
-    console.log(`QR Code scanned! Type: ${type}, Data: ${data}`);
+  setScanned(true);
+  setVerifying(true);
 
-    // Show alert with scanned data
-    Alert.alert('QR Code Scanned', `Data: ${data}`, [
+  try {
+    // ===============================
+    // STEP 2: PARSE QR
+    // ===============================
+    console.log("🔍 STEP 2: Parsing QR");
+
+    const parts = data.split('|');
+    console.log("Split parts:", parts);
+
+    if (parts.length !== 3 || parts[0] !== 'PICKUP') {
+      console.log("❌ Invalid QR format detected");
+      throw new Error("Invalid QR format");
+    }
+
+    const qrOrderId = parts[1];
+    const qrPickupToken = parts[2];
+
+    console.log("Extracted qrOrderId:", qrOrderId);
+    console.log("Extracted qrPickupToken:", qrPickupToken);
+
+    // ===============================
+    // STEP 3: PREPARE REQUEST BODY
+    // ===============================
+    const requestBody = {
+      orderId: qrOrderId,
+      pickupToken: qrPickupToken,
+    };
+
+    console.log("\n📦 STEP 3: Request Body");
+    console.log(JSON.stringify(requestBody, null, 2));
+
+    console.log("\n📡 STEP 4: Sending API Request");
+    console.log("URL:", "https://zordr-backend.onrender.com/api/pickup/verify-scan");
+    console.log("Headers:", {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    });
+
+    // ===============================
+    // STEP 4: API CALL
+    // ===============================
+    const response = await fetch(
+      "https://zordr-backend.onrender.com/api/pickup/verify-scan",
       {
-        text: 'Scan Again',
-        onPress: () => setScanned(false),
-      },
-      {
-        text: 'Close',
-        onPress: () => router.back(),
-      },
-    ]);
-  };
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    console.log("\n📡 STEP 5: Response Received");
+    console.log("Status:", response.status);
+    console.log("OK:", response.ok);
+    console.log("Status Text:", response.statusText);
+
+    // ===============================
+    // STEP 6: READ RAW RESPONSE
+    // ===============================
+    const rawText = await response.text();
+
+    console.log("\n📄 STEP 6: Raw Response Text");
+    console.log(rawText);
+
+    let responseData;
+
+    try {
+      responseData = JSON.parse(rawText);
+      console.log("\n🧠 STEP 7: Parsed JSON Response");
+      console.log(JSON.stringify(responseData, null, 2));
+    } catch (parseError) {
+      console.log("❌ JSON Parse Failed");
+      throw new Error("Server returned invalid JSON");
+    }
+
+    // ===============================
+    // STEP 8: HANDLE SERVER LOGIC
+    // ===============================
+    if (!response.ok) {
+      console.log("❌ Server returned error status");
+      throw new Error(responseData?.message || "Server rejected request");
+    }
+
+    if (responseData?.success) {
+      console.log("🎉 STEP 9: Verification SUCCESS");
+      console.log("Navigating to success screen...");
+      router.replace("/pickup-success");
+    } else {
+      console.log("❌ STEP 9: Verification FAILED");
+      throw new Error(responseData?.message || "Verification failed");
+    }
+
+  } catch (error: any) {
+    console.log("\n❌ ERROR OCCURRED");
+    console.log("Error Type:", typeof error);
+    console.log("Error Object:", error);
+    console.log("Error Message:", error?.message);
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    if (error?.message?.includes("Too early")) {
+      Alert.alert("Pickup Not Open Yet ⏰", error.message);
+    } else {
+      Alert.alert("Verification Failed", error?.message || "Unknown error");
+    }
+
+    setScanned(false);
+  } finally {
+    console.log("🔄 FINAL STEP: Cleanup");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    setVerifying(false);
+  }
+};
+
 
   if (!permission) {
     return (
@@ -47,7 +164,9 @@ export default function QRScannerScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>Camera permission is required to scan QR codes</Text>
+        <Text style={styles.message}>
+          Camera permission is required to scan QR codes
+        </Text>
         <TouchableOpacity onPress={requestPermission} style={styles.permissionButton}>
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
@@ -59,7 +178,6 @@ export default function QRScannerScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Camera View */}
       <CameraView
         style={StyleSheet.absoluteFillObject}
         facing="back"
@@ -69,46 +187,38 @@ export default function QRScannerScreen() {
         }}
       />
 
-      {/* Top Section - Header */}
+      {verifying && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#f97316" />
+          <Text style={{ color: '#fff', marginTop: 10 }}>
+            Verifying order...
+          </Text>
+        </View>
+      )}
+
+      {/* HEADER */}
       <View style={styles.topSection}>
         <View style={styles.header}>
-          <Text style={styles.title}>Scan QR Code</Text>
+          <Text style={styles.title}>Scan Order QR</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
             <X size={24} color="white" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Overlay with transparent cutout */}
-      <View style={styles.overlay}>
-        {/* Top overlay */}
-        <View style={styles.overlayTop} />
-
-        {/* Middle row with transparent square */}
-        <View style={styles.overlayMiddle}>
-          <View style={styles.overlaySide} />
-          <View style={styles.scanningFrame}>
-            {/* Corner Brackets */}
-            <View style={[styles.corner, styles.cornerTopLeft]} />
-            <View style={[styles.corner, styles.cornerTopRight]} />
-            <View style={[styles.corner, styles.cornerBottomLeft]} />
-            <View style={[styles.corner, styles.cornerBottomRight]} />
-          </View>
-          <View style={styles.overlaySide} />
-        </View>
-
-        {/* Bottom overlay */}
-        <View style={styles.overlayBottom} />
-      </View>
-
-      {/* Bottom Section - Instructions */}
+      {/* Bottom instructions */}
       <View style={styles.bottomSection}>
-        <Text style={styles.instructionText}>Position QR code within the frame</Text>
-        <Text style={styles.subText}>The QR code will be scanned automatically</Text>
+        <Text style={styles.instructionText}>
+          Position QR code within the frame
+        </Text>
+        <Text style={styles.subText}>
+          The order will be confirmed after successful scan
+        </Text>
       </View>
     </View>
   );
 }
+
 
 const FRAME_SIZE = 250;
 const CORNER_SIZE = 30;
@@ -225,6 +335,19 @@ const styles = StyleSheet.create({
     width: CORNER_SIZE,
     height: CORNER_SIZE,
   },
+
+  loadingOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.7)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 20,
+},
+
   cornerBottomRight: {
     bottom: 0,
     right: 0,

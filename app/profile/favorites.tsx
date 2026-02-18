@@ -9,64 +9,12 @@ import { Text } from '../../components/ui/text';
 import { hapticFeedback } from '../../utils/haptics';
 
 // Mock Data
-const ALL_ITEMS = [
-  {
-    id: 1,
-    name: 'Egg Puff',
-    price: 25,
-    rating: 4.8,
-    category: 'Snacks',
-    outletName: 'Campus Bakery',
-    image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?q=80&w=1000',
-    desc: 'Hot and spicy bakery puff',
-  },
-  {
-    id: 2,
-    name: 'Masala Dosa',
-    price: 50,
-    rating: 4.7,
-    category: 'Breakfast',
-    outletName: 'Main Canteen',
-    image: 'https://images.unsplash.com/photo-1645177628172-a94c1f96e6db?q=80&w=1000',
-    desc: 'Crispy dosa',
-  },
-  {
-    id: 3,
-    name: 'Cold Coffee',
-    price: 60,
-    rating: 4.6,
-    category: 'Drinks',
-    outletName: 'Fresh Juice Bar',
-    image: 'https://images.unsplash.com/photo-1517701604599-bb29b5dd7359?q=80&w=1000',
-    desc: 'Thick chocolate',
-  },
-  {
-    id: 4,
-    name: 'Chicken Burger',
-    price: 220,
-    rating: 4.9,
-    category: 'Burgers',
-    outletName: 'Main Canteen',
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1000',
-    desc: 'Juicy grilled chicken',
-  },
-  {
-    id: 101,
-    name: 'Chicken Biryani Combo',
-    price: 180,
-    rating: 4.5,
-    outletName: 'Main Canteen',
-    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=1000',
-    desc: 'Hyderabadi style dum biryani',
-  },
-];
+
 
 export default function FavoritesScreen() {
   const router = useRouter();
-  const { favorites, toggleFavorite, addToCart } = useStore();
+  const { favoriteItems, toggleFavorite, addToCart } = useStore();
 
-  // Filter items based on favorites list
-  const favoriteItems = ALL_ITEMS.filter((item) => favorites.includes(item.id));
 
   const handleAddToCart = (item: any) => {
     hapticFeedback.success();
