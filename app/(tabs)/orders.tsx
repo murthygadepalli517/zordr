@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Layout } from '../../components/ui/layout';
 import { Text } from '../../components/ui/text';
 import { useStore, Order } from '../../context/StoreContext';
+
+
 import {
   CheckCircle2,
   XCircle,
@@ -37,8 +39,11 @@ const [ratings, setRatings] = useState<{
   };
 }>({});
 
+
+
   // State for Custom Cancel Modal
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
+const { authToken } = useStore(); // Get the stored token dynamically
 
   // FIXED: Added 'out_for_delivery' to active and 'delivered' to past
   const activeOrders = orders.filter((o) =>
@@ -71,6 +76,27 @@ const [ratings, setRatings] = useState<{
     }
   };
 
+  useEffect(() => {
+  if (!authToken) return;
+
+  const loadReviews = async () => {
+    const newRatings: typeof ratings = {};
+    for (const order of pastOrders) {
+      const review = await fetchReview(order.id, authToken);
+      if (review) {
+        newRatings[order.id] = {
+          rating: review.rating,
+          review: review.comment,
+          submitted: true,
+        };
+      }
+    }
+    setRatings((prev) => ({ ...prev, ...newRatings }));
+  };
+
+  loadReviews();
+}, [authToken, pastOrders]);
+
   const handleReorder = (order: Order) => {
     hapticFeedback.medium();
     clearCart();
@@ -87,6 +113,9 @@ const [ratings, setRatings] = useState<{
     });
     router.push('/cart');
   };
+
+
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -136,6 +165,135 @@ const [ratings, setRatings] = useState<{
     }
   };
 
+
+//   const fetchReview = async (orderId: string, token: string) => {
+//   try {
+//     const res = await fetch(`https://zordr-backend.onrender.com/api/reviews/${orderId}`, {
+//       method: 'GET',
+//       headers: { 
+//         Authorization: `Bearer ${token}`,
+//         Accept: 'application/json',
+//       },
+//     });
+//     const data = await res.json();
+//     if (data.success && data.hasReviewed) return data.data;
+//     return null;
+//   } catch (error) {
+//     console.error('Error fetching review:', error);
+//     return null;
+//   }
+// };
+
+// const postReview = async (orderId: string, rating: number, comment: string, token: string) => {
+//   try {
+//     const res = await fetch(`https://zordr-backend.onrender.com/api/reviews/${orderId}`, {
+//       method: 'POST',
+//       headers: { 
+//         Authorization: `Bearer ${token}`,
+//         Accept: 'application/json',
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({ rating, comment }),
+//     });
+//     const data = await res.json();
+//     return data.success;
+//   } catch (error) {
+//     console.error('Error posting review:', error);
+//     return false;
+//   }
+// };
+
+
+const fetchReview = async (orderId: string, token: string) => {
+  console.log('--- fetchReview START ---');
+  console.log('Order ID:', orderId);
+  console.log('Token:', token);
+
+  try {
+    const url = `https://zordr-backend.onrender.com/api/reviews/${orderId}`;
+    console.log('Fetching URL:', url);
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    };
+    console.log('Request Headers:', headers);
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    console.log('Response Status:', res.status);
+    console.log('Response OK?', res.ok);
+
+    const data = await res.json();
+    console.log('Response JSON:', data);
+
+    if (data.success && data.hasReviewed) {
+      console.log('Review found:', data.data);
+      return data.data; // Should be { rating, comment }
+    }
+
+    console.log('No review found for this order.');
+    return null;
+  } catch (error) {
+    console.error('Error fetching review:', error);
+    return null;
+  } finally {
+    console.log('--- fetchReview END ---');
+  }
+};
+
+const postReview = async (orderId: string, rating: number, comment: string, token: string) => {
+  console.log('--- postReview START ---');
+  console.log('Order ID:', orderId);
+  console.log('Rating:', rating);
+  console.log('Comment:', comment);
+  console.log('Token:', token);
+
+  try {
+    const url = `https://zordr-backend.onrender.com/api/reviews/${orderId}`;
+    console.log('Posting URL:', url);
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    console.log('Request Headers:', headers);
+
+    const body = JSON.stringify({ rating, comment });
+    console.log('Request Body:', body);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+    });
+
+    console.log('Response Status:', res.status);
+    console.log('Response OK?', res.ok);
+
+    const data = await res.json();
+    console.log('Response JSON:', data);
+
+    if (data.success) {
+      console.log('Review submitted successfully!');
+      return true;
+    }
+
+    console.warn('Failed to submit review:', data);
+    return false;
+  } catch (error) {
+    console.error('Error posting review:', error);
+    return false;
+  } finally {
+    console.log('--- postReview END ---');
+  }
+};
+
+
 const renderRatingSection = (order: Order) => {
   const ratingData = ratings[order.id] || {
     rating: 0,
@@ -144,16 +302,57 @@ const renderRatingSection = (order: Order) => {
   };
 
   if (ratingData.submitted) {
+    // SHOW fetched review dynamically instead of just a thank-you
     return (
-      <View className="mt-3 bg-green-500/10 border border-green-500/20 p-4 rounded-xl items-center">
-        <CheckCircle2 size={18} color="#22c55e" />
-        <Text className="text-green-400 font-bold text-sm mt-2">
-          Thanks for your review ⭐
+      <View className="mt-3 bg-green-500/10 border border-green-500/20 p-4 rounded-xl">
+        <Text className="text-green-400 font-bold text-sm mb-2">
+          Your Review ⭐
         </Text>
+
+        {/* ⭐ Star Row */}
+       <View className="flex-row mb-3 items-center">
+  {[1, 2, 3, 4, 5].map((index) => {
+    let fill = "#444";       // default empty
+    let filled = false;
+
+    if (ratingData.rating >= index) fill = "#FACC15"; // full star
+    else if (ratingData.rating >= index - 0.5) fill = "#FACC15"; // half star visual
+
+    return (
+      <View key={index} className="relative mr-2">
+        {/* Empty Star */}
+        <Star size={28} color="#444" />
+        {/* Full / Half Star */}
+        {ratingData.rating >= index ? (
+          <Star size={28} color="#FACC15" fill="#FACC15" style={{ position: 'absolute', left: 0 }} />
+        ) : ratingData.rating >= index - 0.5 ? (
+          <View style={{ position: 'absolute', overflow: 'hidden', width: 14, left: 0 }}>
+            <Star size={28} color="#FACC15" fill="#FACC15" />
+          </View>
+        ) : null}
+        {/* Touchable for selecting */}
+        <View style={{ position: 'absolute', flexDirection: 'row' }}>
+          <TouchableOpacity style={{ width: 14, height: 28 }} onPress={() => setRating(index - 0.5)} />
+          <TouchableOpacity style={{ width: 14, height: 28 }} onPress={() => setRating(index)} />
+        </View>
+      </View>
+    );
+  })}
+  <Text className="#FACC15 ml-3 font-bold text-base">{ratingData.rating.toFixed(1)}</Text>
+</View>
+
+
+        {/* Review Text */}
+        {ratingData.review ? (
+          <Text className="text-gray-300 text-sm italic">{`"${ratingData.review}"`}</Text>
+        ) : (
+          <Text className="text-gray-400 text-sm italic">No comment provided</Text>
+        )}
       </View>
     );
   }
 
+  // If not submitted, show the interactive rating input (existing UI)
   const setRating = (value: number) => {
     setRatings((prev) => ({
       ...prev,
@@ -174,60 +373,27 @@ const renderRatingSection = (order: Order) => {
       <View className="flex-row mb-3 items-center">
         {[1, 2, 3, 4, 5].map((index) => {
           const full = ratingData.rating >= index;
-          const half =
-            ratingData.rating >= index - 0.5 &&
-            ratingData.rating < index;
+          const half = ratingData.rating >= index - 0.5 && ratingData.rating < index;
 
           return (
             <View key={index} className="relative mr-2">
-              
-              {/* Background Empty Star */}
               <Star size={28} color="#444" />
-
-              {/* Full Star */}
               {full && (
-                <Star
-                  size={28}
-                  color="#FACC15"
-                  fill="#FACC15"
-                  style={{ position: 'absolute', left: 0 }}
-                />
+                <Star size={28} color="#FACC15" fill="#FACC15" style={{ position: 'absolute', left: 0 }} />
               )}
-
-              {/* Half Star */}
               {half && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    width: 14,
-                    overflow: 'hidden',
-                  }}
-                >
+                <View style={{ position: 'absolute', width: 14, overflow: 'hidden' }}>
                   <Star size={28} color="#FACC15" fill="#FACC15" />
                 </View>
               )}
-
-              {/* Touchable Overlay */}
               <View style={{ position: 'absolute', flexDirection: 'row' }}>
-                {/* Half */}
-                <TouchableOpacity
-                  style={{ width: 14, height: 28 }}
-                  onPress={() => setRating(index - 0.5)}
-                />
-
-                {/* Full */}
-                <TouchableOpacity
-                  style={{ width: 14, height: 28 }}
-                  onPress={() => setRating(index)}
-                />
+                <TouchableOpacity style={{ width: 14, height: 28 }} onPress={() => setRating(index - 0.5)} />
+                <TouchableOpacity style={{ width: 14, height: 28 }} onPress={() => setRating(index)} />
               </View>
             </View>
           );
         })}
-
-        <Text className="#FACC15 ml-3 font-bold text-base">
-          {ratingData.rating.toFixed(1)}
-        </Text>
+        <Text className="#FACC15 ml-3 font-bold text-base">{ratingData.rating.toFixed(1)}</Text>
       </View>
 
       {/* Review Input */}
@@ -236,10 +402,7 @@ const renderRatingSection = (order: Order) => {
         onChangeText={(text) =>
           setRatings((prev) => ({
             ...prev,
-            [order.id]: {
-              ...ratingData,
-              review: text,
-            },
+            [order.id]: { ...ratingData, review: text },
           }))
         }
         placeholder="Write your review..."
@@ -248,31 +411,28 @@ const renderRatingSection = (order: Order) => {
         className="bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm mb-3"
       />
 
-      {/* Submit */}
+      {/* Submit Button */}
       <TouchableOpacity
         disabled={!ratingData.rating}
-        onPress={() =>
-          setRatings((prev) => ({
-            ...prev,
-            [order.id]: {
-              ...ratingData,
-              submitted: true,
-            },
-          }))
-        }
-        className={`py-3 rounded-xl items-center ${
-          ratingData.rating
-            ? 'bg-[#FF5500]'
-            : 'bg-gray-700'
-        }`}
+        onPress={async () => {
+          if (!order.id || !authToken) return;
+          const success = await postReview(order.id, ratingData.rating, ratingData.review, authToken);
+          if (success) {
+            setRatings((prev) => ({ ...prev, [order.id]: { ...ratingData, submitted: true } }));
+            hapticFeedback.success();
+          } else {
+            hapticFeedback.error();
+            alert('Failed to submit review. Please try again.');
+          }
+        }}
+        className={`py-3 rounded-xl items-center ${ratingData.rating ? 'bg-[#FF5500]' : 'bg-gray-700'}`}
       >
-        <Text className="text-white font-bold text-sm">
-          Submit Review
-        </Text>
+        <Text className="text-white font-bold text-sm">Submit Review</Text>
       </TouchableOpacity>
     </View>
   );
 };
+
 
 
 
@@ -393,6 +553,8 @@ const renderRatingSection = (order: Order) => {
                     />
                   </View>
                 )}
+
+
 
                 {/* Action Buttons */}
                 {activeTab === 'active' && (
