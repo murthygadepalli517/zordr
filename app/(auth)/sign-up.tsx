@@ -372,7 +372,7 @@ const campusesToDisplay =
                   ))}
                 </View>
 
-                <View>
+                  <View className="mt-4 mb-4">
                   <Text className="text-[10px] font-bold text-gray-500 uppercase mb-3 ml-1 tracking-widest">
                     Allergies (Optional)
                   </Text>

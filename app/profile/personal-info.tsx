@@ -12,6 +12,8 @@ import { hapticFeedback } from '../../utils/haptics';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
+
 
 
 const GENDER_OPTS = [
@@ -34,6 +36,7 @@ const { user, updateUser, authToken } = useStore();
   const [profileImage, setProfileImage] = useState<string | null>(user?.profileImage || null);
 const [isUploading, setIsUploading] = useState(false);
 const insets = useSafeAreaInsets();
+const queryClient = useQueryClient();
 
 
 
@@ -82,6 +85,10 @@ const uploadProfileImage = async (imageUri: string) => {
 
     if (response.ok && result?.data) {
       const updatedUser = result.data;
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+
+
+
 
      updateUser(updatedUser);
 
@@ -191,6 +198,8 @@ const openImageOptions = async () => {
 
     if (response.ok && result?.data) {
       updateUser(result.data);
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+
       Alert.alert("Success", "Profile updated!");
       router.back();
     } else {

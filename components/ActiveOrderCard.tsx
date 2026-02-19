@@ -43,7 +43,7 @@ export const ActiveOrderCard = ({ order, scrollY }: ActiveOrderCardProps) => {
     });
 
     const containerStyle = useAnimatedStyle(() => {
-        const height = interpolate(scrollY.value, [0, 80], [90, 44], Extrapolation.CLAMP);
+        const height = interpolate(scrollY.value, [0, 80], [105, 44], Extrapolation.CLAMP);
         const marginHorizontal = interpolate(scrollY.value, [0, 80], [16, 12], Extrapolation.CLAMP);
 
         return {
@@ -124,6 +124,10 @@ export const ActiveOrderCard = ({ order, scrollY }: ActiveOrderCardProps) => {
                                 <Text className="text-white font-bold text-lg leading-tight mt-0.5" numberOfLines={1}>
                                     {order.outletName}
                                 </Text>
+
+                                <Text className="text-gray-500 text-[11px] font-semibold mt-0.5">
+                                    Order #{order.orderNumber.slice(-5).toUpperCase()}
+                                    </Text>
                                 <Text className="text-gray-400 text-sm font-medium mt-0.5" numberOfLines={1}>
                                     {order.items.map((item) => `${item.quantity}x ${item.name}`).join(', ')}
                                 </Text>

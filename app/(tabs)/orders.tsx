@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Layout } from '../../components/ui/layout';
 import { Text } from '../../components/ui/text';
@@ -14,6 +14,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Bike,
+  Star,
 } from 'lucide-react-native';
 import Animated, {
   FadeInDown,
@@ -28,6 +29,13 @@ export default function OrdersScreen() {
   const router = useRouter();
   const { orders, cancelOrder, addToCart, clearCart } = useStore();
   const [activeTab, setActiveTab] = useState<'active' | 'reorder' | 'past'>('active');
+const [ratings, setRatings] = useState<{
+  [orderId: string]: {
+    rating: number;
+    review: string;
+    submitted: boolean;
+  };
+}>({});
 
   // State for Custom Cancel Modal
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
@@ -94,7 +102,7 @@ export default function OrdersScreen() {
         return 'text-purple-500';
       case 'delivered':
       case 'completed':
-        return 'text-gray-400';
+        return 'text-green-500';
       case 'cancelled':
         return 'text-red-500';
       case 'expired':
@@ -114,8 +122,10 @@ export default function OrdersScreen() {
         return <Bike size={16} color="#a855f7" />;
       case 'delivered':
       case 'completed':
-        return <CheckCircle2 size={16} color="#9ca3af" />;
+        return <CheckCircle2 size={16} color="#04c42ec7" />;
       case 'cancelled':
+        return <XCircle size={16} color="#ef4444" />;
+        case 'expired':
         return <XCircle size={16} color="#ef4444" />;
       case 'new':
       case 'pending':
@@ -125,6 +135,147 @@ export default function OrdersScreen() {
         return <CheckCircle2 size={16} color="#6b7280" />;
     }
   };
+
+const renderRatingSection = (order: Order) => {
+  const ratingData = ratings[order.id] || {
+    rating: 0,
+    review: '',
+    submitted: false,
+  };
+
+  if (ratingData.submitted) {
+    return (
+      <View className="mt-3 bg-green-500/10 border border-green-500/20 p-4 rounded-xl items-center">
+        <CheckCircle2 size={18} color="#22c55e" />
+        <Text className="text-green-400 font-bold text-sm mt-2">
+          Thanks for your review ⭐
+        </Text>
+      </View>
+    );
+  }
+
+  const setRating = (value: number) => {
+    setRatings((prev) => ({
+      ...prev,
+      [order.id]: {
+        ...ratingData,
+        rating: value,
+      },
+    }));
+  };
+
+  return (
+    <View className="mt-3 bg-[#111] border border-white/10 p-4 rounded-xl">
+      <Text className="text-white font-bold text-sm mb-3">
+        Rate & Review
+      </Text>
+
+      {/* ⭐ Star Row */}
+      <View className="flex-row mb-3 items-center">
+        {[1, 2, 3, 4, 5].map((index) => {
+          const full = ratingData.rating >= index;
+          const half =
+            ratingData.rating >= index - 0.5 &&
+            ratingData.rating < index;
+
+          return (
+            <View key={index} className="relative mr-2">
+              
+              {/* Background Empty Star */}
+              <Star size={28} color="#444" />
+
+              {/* Full Star */}
+              {full && (
+                <Star
+                  size={28}
+                  color="#FACC15"
+                  fill="#FACC15"
+                  style={{ position: 'absolute', left: 0 }}
+                />
+              )}
+
+              {/* Half Star */}
+              {half && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    width: 14,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Star size={28} color="#FACC15" fill="#FACC15" />
+                </View>
+              )}
+
+              {/* Touchable Overlay */}
+              <View style={{ position: 'absolute', flexDirection: 'row' }}>
+                {/* Half */}
+                <TouchableOpacity
+                  style={{ width: 14, height: 28 }}
+                  onPress={() => setRating(index - 0.5)}
+                />
+
+                {/* Full */}
+                <TouchableOpacity
+                  style={{ width: 14, height: 28 }}
+                  onPress={() => setRating(index)}
+                />
+              </View>
+            </View>
+          );
+        })}
+
+        <Text className="#FACC15 ml-3 font-bold text-base">
+          {ratingData.rating.toFixed(1)}
+        </Text>
+      </View>
+
+      {/* Review Input */}
+      <TextInput
+        value={ratingData.review}
+        onChangeText={(text) =>
+          setRatings((prev) => ({
+            ...prev,
+            [order.id]: {
+              ...ratingData,
+              review: text,
+            },
+          }))
+        }
+        placeholder="Write your review..."
+        placeholderTextColor="#666"
+        multiline
+        className="bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm mb-3"
+      />
+
+      {/* Submit */}
+      <TouchableOpacity
+        disabled={!ratingData.rating}
+        onPress={() =>
+          setRatings((prev) => ({
+            ...prev,
+            [order.id]: {
+              ...ratingData,
+              submitted: true,
+            },
+          }))
+        }
+        className={`py-3 rounded-xl items-center ${
+          ratingData.rating
+            ? 'bg-[#FF5500]'
+            : 'bg-gray-700'
+        }`}
+      >
+        <Text className="text-white font-bold text-sm">
+          Submit Review
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+
+
 
   return (
     <Layout className="flex-1 bg-black" safeArea>
@@ -283,7 +434,13 @@ export default function OrdersScreen() {
                       <RefreshCw size={14} color="white" />
                       <Text className="text-white font-bold text-sm">Reorder</Text>
                     </TouchableOpacity>
+
+                    
                   )}
+
+                  {activeTab === 'past' && order.status === 'completed' && (
+            renderRatingSection(order)
+)}
               </View>
             </Animated.View>
           ))

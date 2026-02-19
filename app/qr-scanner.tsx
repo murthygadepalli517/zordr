@@ -60,7 +60,7 @@ if (!orderId) {
 }
 
 
-    console.log("Extracted OrderId:", orderId);
+    console.log(" OrderId:", orderId);
     console.log("Extracted qrPickupToken:", qrPickupToken);
 
     // ===============================

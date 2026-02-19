@@ -4,6 +4,9 @@ import { useRouter } from 'expo-router';
 import { Layout } from '../../components/ui/layout';
 import { Text } from '../../components/ui/text';
 import { useStore } from '../../context/StoreContext';
+import { BackHandler } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+
 
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'expo-camera';
@@ -49,6 +52,29 @@ export default function ProfileScreen() {
   );
 const [pendingImage, setPendingImage] = React.useState<string | null>(null);
 const [isUploading, setIsUploading] = React.useState(false);
+
+useFocusEffect(
+  React.useCallback(() => {
+
+    if (store.isAuthenticated) {
+      refetch(); // 👈 always fetch latest profile
+    }
+    const onBackPress = () => {
+      router.replace('/'); // ✅ correct home route
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress
+    );
+
+    return () => subscription.remove();
+  }, [])
+);
+
+
+
   /* -------------------- PERMISSIONS -------------------- */
 
   const requestPermissions = async () => {
@@ -206,6 +232,8 @@ Alert.alert(
     error,
     isSuccess,
     isError,
+    refetch
+
   } = useQuery<BackendProfile>({
     queryKey: ['userProfile'],
     queryFn: () => apiFetch('user/profile', {}, authToken!),

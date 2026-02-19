@@ -61,6 +61,7 @@ export interface Order {
   originalPrice?: number;
   outletId: string;
   outletName: string;
+  orderNumber: string;
   pickupTime?: string;
   paymentMethod?: string;
   pickupSlot?: string;
@@ -187,6 +188,7 @@ interface StoreContextType {
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+const isLoggingOutRef = React.useRef(false);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
@@ -222,9 +224,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // 🔒 Listen for 401 Unauthorized events from API
     const handleUnauthorized = () => {
-      console.log('🔒 Session expired. Logging out.');
-      logout();
-    };
+  if (isLoggingOutRef.current) return; // 🚀 prevent double logout
+
+  console.log('🔒 Session expired. Logging out.');
+  logout();
+};
 
     // Lazy import or robust import
     import('../utils/events').then(({ globalEvents }) => {
@@ -398,6 +402,9 @@ const favoriteItems = favoritesData;
   };
 
   const logout = async () => {
+
+      isLoggingOutRef.current = true;
+
     setUser(null);
     setAuthToken(null);
     setActiveOutletId(null);
@@ -408,6 +415,10 @@ const favoriteItems = favoritesData;
     } catch (error) {
       console.error(error);
     }
+
+      setTimeout(() => {
+    isLoggingOutRef.current = false;
+  }, 1000);
   };
 
   // --- CART OPTIMISTIC UPDATES ---
