@@ -9,6 +9,10 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { useStore } from '../../context/StoreContext';
 import { hapticFeedback } from '../../utils/haptics';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const GENDER_OPTS = [
   { id: 'Male', label: 'Male' },
@@ -18,7 +22,7 @@ const GENDER_OPTS = [
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
-  const { user, updateUser } = useStore();
+const { user, updateUser, authToken } = useStore();
 
   // Local state for form
   const [name, setName] = useState('');
@@ -27,6 +31,120 @@ export default function PersonalInfoScreen() {
   const [gender, setGender] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(user?.profileImage || null);
+const [isUploading, setIsUploading] = useState(false);
+const insets = useSafeAreaInsets();
+
+
+
+const requestPermissions = async () => {
+  const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+  const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+  if (
+    cameraPermission.status !== 'granted' ||
+    mediaPermission.status !== 'granted'
+  ) {
+    Alert.alert(
+      'Permission Required',
+      'Camera and gallery permissions are required.'
+    );
+    return false;
+  }
+
+  return true;
+};
+
+
+const uploadProfileImage = async (imageUri: string) => {
+  try {
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append("profileImage", {
+      uri: imageUri,
+      name: "profile.jpg",
+      type: "image/jpeg",
+    } as any);
+
+    const response = await fetch(
+      "https://zordr-backend.onrender.com/api/user/profile",
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
+
+    if (response.ok && result?.data) {
+      const updatedUser = result.data;
+
+     updateUser(updatedUser);
+
+
+      setProfileImage(updatedUser.profileImage);
+
+      Alert.alert("Success", "Profile image updated!");
+    } else {
+      Alert.alert("Upload Failed", "Could not update image.");
+    }
+  } catch (error) {
+    Alert.alert("Error", "Something went wrong");
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+
+const openImageOptions = async () => {
+  const hasPermission = await requestPermissions();
+  if (!hasPermission) return;
+
+  Alert.alert(
+    'Update Profile Picture',
+    'Choose an option',
+    [
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+
+         if (!result.canceled) {
+            const localUri = result.assets[0].uri;
+
+            // 👇 Instant preview before upload
+            setProfileImage(localUri);
+
+            uploadProfileImage(localUri);
+          }
+
+        },
+      },
+      {
+        text: 'Choose from Gallery',
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+
+          if (!result.canceled) {
+            uploadProfileImage(result.assets[0].uri);
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ],
+    { cancelable: true }
+  );
+};
 
   // Sync state with user from context/API
   useEffect(() => {
@@ -39,17 +157,49 @@ export default function PersonalInfoScreen() {
     }
   }, [user]);
 
-  const handleSave = () => {
+
+
+  useEffect(() => {
+  if (user?.profileImage) {
+    setProfileImage(user.profileImage);
+  }
+}, [user?.profileImage]);
+
+
+ const handleSave = async () => {
+  try {
     hapticFeedback.success();
-    updateUser({
-      name,
-      email,
-      phone,
-      gender,
-  dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : undefined,
-    });
-    router.back();
-  };
+
+    const response = await fetch(
+      "https://zordr-backend.onrender.com/api/user/profile",
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          gender,
+          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (response.ok && result?.data) {
+      updateUser(result.data);
+      Alert.alert("Success", "Profile updated!");
+      router.back();
+    } else {
+      Alert.alert("Error", "Could not update profile.");
+    }
+  } catch (error) {
+    Alert.alert("Error", "Something went wrong.");
+  }
+};
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios'); // keep picker open on iOS
@@ -69,19 +219,27 @@ export default function PersonalInfoScreen() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{  padding: 24,
+    paddingBottom: 140 + insets.bottom, }}>
         {/* Avatar */}
         <View className="items-center mb-10">
           <View className="relative">
             <View className="w-32 h-32 rounded-full border-4 border-[#FF5500] p-1">
               <Image
-                source={{ uri: 'https://github.com/shadcn.png' }}
+                      source={{
+                        uri:
+                          profileImage ||
+                          'https://github.com/shadcn.png',
+                      }}
                 className="w-full h-full rounded-full"
               />
             </View>
-            <TouchableOpacity className="absolute bottom-0 right-0 bg-[#FF5500] p-2.5 rounded-full border-4 border-black">
-              <Camera size={18} color="white" />
-            </TouchableOpacity>
+           <TouchableOpacity
+                    onPress={openImageOptions}
+                    className="absolute bottom-0 right-0 bg-[#FF5500] p-2.5 rounded-full border-4 border-black"
+                  >
+                    <Camera size={18} color="white" />
+                  </TouchableOpacity>
           </View>
         </View>
 
@@ -201,8 +359,11 @@ export default function PersonalInfoScreen() {
       </ScrollView>
 
       {/* Save Button */}
-      <View className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10">
-        <Button
+          <View
+            style={{ paddingBottom: 20 + insets.bottom }}
+            className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10"
+          >    
+              <Button
           label="Save Changes"
           icon={<Save size={20} color="white" />}
           onPress={handleSave}

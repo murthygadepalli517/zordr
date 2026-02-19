@@ -29,11 +29,33 @@ export default function OtpVerificationScreen() {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ✅ NEW STATES
+  const [resendTimer, setResendTimer] = useState(30);
+  const [isResendDisabled, setIsResendDisabled] = useState(true);
+
+  // Focus first input
   useEffect(() => {
-    if (inputRefs.current[0]) {
-      inputRefs.current[0]?.focus();
-    }
+    inputRefs.current[0]?.focus();
   }, []);
+
+  // ✅ TIMER EFFECT
+ useEffect(() => {
+  if (!isResendDisabled) return;
+
+  const interval = setInterval(() => {
+    setResendTimer((prev) => {
+      if (prev <= 1) {
+        clearInterval(interval);
+        setIsResendDisabled(false);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [isResendDisabled]);
+
 
   const handleOtpChange = (text: string, index: number) => {
     if (isLoading) return;
@@ -42,7 +64,7 @@ export default function OtpVerificationScreen() {
     newOtp[index] = text.slice(-1);
     setOtp(newOtp);
 
-    if (newOtp[index].length === 1 && index < 5) {
+    if (newOtp[index] && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -61,31 +83,25 @@ export default function OtpVerificationScreen() {
     hapticFeedback.success();
 
     try {
-      // API Call: Verify OTP (This acts as both login and initial signup)
       const response = await apiFetch('auth/verify-otp', {
         method: 'POST',
         body: { phone, otp: fullOtp },
       });
 
-      // apiFetch now returns the extracted data directly (not response.data)
       const { user, token, isNewUser } = response;
 
-      // 1. Save user and token to global state
       store.login({ user, token });
 
-      // 2. Determine next step
       if (isNewUser) {
-        // New user flow: navigate to the three-step signup/personalization
         router.replace('/(auth)/sign-up');
       } else {
-        // Existing user flow: navigate directly to the main app tabs
         router.replace('/(tabs)');
       }
     } catch (error: any) {
       hapticFeedback.error();
       showAlert({
         title: 'Verification Failed',
-        message: error.message || 'Invalid OTP or network error. Please try again.',
+        message: error.message || 'Invalid OTP or network error.',
         type: 'error',
         buttons: [
           {
@@ -99,6 +115,35 @@ export default function OtpVerificationScreen() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ✅ RESEND FUNCTION
+  const handleResend = async () => {
+    if (isResendDisabled) return;
+
+    setIsResendDisabled(true);
+    setResendTimer(30);
+    hapticFeedback.medium();
+
+    try {
+      await apiFetch('auth/send-otp', {
+        method: 'POST',
+        body: { phone },
+      });
+
+      showAlert({
+        title: 'OTP Sent',
+        message: 'A new OTP has been sent to your mobile number.',
+        type: 'success',
+      });
+    } catch (error: any) {
+      hapticFeedback.error();
+      showAlert({
+        title: 'Failed',
+        message: error.message || 'Failed to resend OTP.',
+        type: 'error',
+      });
     }
   };
 
@@ -147,15 +192,15 @@ export default function OtpVerificationScreen() {
                 {otp.map((digit, index) => (
                   <TextInput
                     key={index}
-                    ref={(ref) => {
-                      inputRefs.current[index] = ref;
-                    }}
+                        ref={(ref) => {
+                        inputRefs.current[index] = ref;
+                      }}
                     className={`flex-1 h-14 rounded-xl border text-center text-2xl font-bold text-white bg-[#1E1E1E] ${
                       focusedIndex === index
                         ? 'border-[#FF5500] bg-[#FF5500]/10'
                         : digit
-                          ? 'border-[#FF5500]/50'
-                          : 'border-white/10'
+                        ? 'border-[#FF5500]/50'
+                        : 'border-white/10'
                     }`}
                     maxLength={1}
                     keyboardType="number-pad"
@@ -164,8 +209,6 @@ export default function OtpVerificationScreen() {
                     onKeyPress={(e) => handleKeyPress(e, index)}
                     onFocus={() => setFocusedIndex(index)}
                     onBlur={() => setFocusedIndex(null)}
-                    selectTextOnFocus
-                    selectionColor="#FF5500"
                     editable={!isLoading}
                   />
                 ))}
@@ -175,7 +218,9 @@ export default function OtpVerificationScreen() {
                 onPress={handleVerify}
                 activeOpacity={0.8}
                 disabled={isVerifyDisabled}
-                className={`w-full h-14 rounded-2xl flex-row items-center justify-center gap-2 ${isVerifyDisabled ? 'bg-[#FF5500]/50' : 'bg-[#FF5500]'}`}
+                className={`w-full h-14 rounded-2xl flex-row items-center justify-center gap-2 ${
+                  isVerifyDisabled ? 'bg-[#FF5500]/50' : 'bg-[#FF5500]'
+                }`}
               >
                 <Text className="text-white font-bold text-lg">
                   {isLoading ? 'Verifying...' : 'Verify'}
@@ -183,10 +228,18 @@ export default function OtpVerificationScreen() {
                 <ChevronRight size={20} color="white" strokeWidth={3} />
               </TouchableOpacity>
 
+              {/* ✅ RESEND SECTION (UI unchanged, logic added) */}
               <View className="flex-row justify-center mt-6 items-center">
-                <Text className="text-gray-500 font-medium">Didn't receive it? </Text>
-                <TouchableOpacity>
-                  <Text className="text-[#FF5500] font-bold ml-1">Resend</Text>
+                <Text className="text-gray-500 font-medium">
+                  Didn't receive it?{' '}
+                </Text>
+                <TouchableOpacity
+                  disabled={isResendDisabled}
+                  onPress={handleResend}
+                >
+                  <Text className={`font-bold ml-1 ${isResendDisabled ? 'text-gray-500' : 'text-[#FF5500]'}`}>
+                    {isResendDisabled ? `Resend (${resendTimer}s)` : 'Resend'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>

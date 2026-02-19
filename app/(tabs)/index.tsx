@@ -55,6 +55,8 @@ import { AnimatedItem } from '../../components/AnimatedItem';
 import { ReadyToPickRibbon } from '../../components/ReadyToPickRibbon';
 import { usePrepTime } from '../../components/PrepTimeProgressBar';
 import { ActiveOrderCard } from '../../components/ActiveOrderCard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const { width } = Dimensions.get('window');
 
@@ -87,6 +89,7 @@ export default function HomeScreen() {
     refreshApp,
     categories,
   } = useStore();
+const { user } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -99,6 +102,7 @@ export default function HomeScreen() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+const insets = useSafeAreaInsets();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -385,8 +389,10 @@ export default function HomeScreen() {
                         onPress={() => router.push('/profile')}
                         className="w-10 h-10 rounded-full border-2 border-primary overflow-hidden"
                       >
-                        <Image
-                          source={{ uri: 'https://github.com/shadcn.png' }}
+                       <Image
+                          source={{
+                            uri: user?.profileImage || 'https://github.com/shadcn.png',
+                          }}
                           className="w-full h-full"
                           resizeMode="cover"
                         />
@@ -814,7 +820,7 @@ export default function HomeScreen() {
       position: 'absolute',
       left: 16,
       right: 16,
-      bottom: Platform.OS === 'ios' ? 95 : 75,
+      bottom: insets.bottom,
       backgroundColor: '#f97316', // ensure visible bg
       borderRadius: 24,
       shadowColor: '#f97316',

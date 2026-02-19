@@ -10,10 +10,14 @@ import { useStore } from '../context/StoreContext';
 import { hapticFeedback } from '../utils/haptics';
 import { playSound } from '../utils/sound';
 import { SlideButton } from '../components/ui/SlideButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 export default function CheckoutScreen() {
   const router = useRouter();
   const { cart, placeOrder, orders, getOutletSlots, outlets } = useStore();
+  const insets = useSafeAreaInsets();
+
 
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<
@@ -616,7 +620,10 @@ export default function CheckoutScreen() {
       </ScrollView>
 
       {/* BOTTOM ACTION BAR */}
-      <View className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10 pb-10">
+      <View 
+        style={{ paddingBottom: 20 + insets.bottom }}
+
+      className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10 pb-10">
         {/* Slide to Pay Button */}
         {selectedTime ? (
           <SlideButton amount={total} onSlideSuccess={handleOrderSuccess} />

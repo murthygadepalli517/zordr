@@ -577,7 +577,7 @@ const updateUserMutation = useMutation({
     if (!authToken) return;
 
     // Check for different outlet
-    if (!skipOutletCheck && cart.length > 0 && cart[0].outletId !== item.outletId) {
+    if (!skipOutletCheck && cart.length > 0 && item.outletId && cart[0].outletId !== item.outletId) {
       showAlert({
         title: 'Start New Order?',
         message: `Your cart contains items from ${cart[0].outletName}. Would you like to clear it and add items from ${item.outletName}?`,

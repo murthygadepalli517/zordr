@@ -16,12 +16,15 @@ import { useRouter, useNavigation } from 'expo-router';
 import { useStore } from '../../context/StoreContext';
 import { hapticFeedback } from '../../utils/haptics';
 import Animated, { FadeInRight, Layout as LayoutAnim } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { cart, updateQuantity, removeFromCart, stats } = useStore();
   const [usePoints, setUsePoints] = useState(false);
+const insets = useSafeAreaInsets();
 
   // Intercept back gesture to navigate to home
   useEffect(() => {
@@ -177,7 +180,7 @@ export default function CartScreen() {
         </View>
 
         {/* Loyalty Reward Card */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={handleTogglePoints}
           activeOpacity={0.9}
           className={`p-5 rounded-[24px] border mb-6 flex-row items-center justify-between ${
@@ -207,7 +210,7 @@ export default function CartScreen() {
           >
             {usePoints && <View className="w-2.5 h-2.5 bg-white rounded-full" />}
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Bill Details */}
         <View className="bg-[#1A1A1A] p-6 rounded-[32px] border border-white/5 space-y-3">
@@ -239,8 +242,9 @@ export default function CartScreen() {
 
       {/* Checkout Bar - Raised to avoid Tab Bar overlap */}
       <View
-        className="absolute left-0 right-0 p-6 bg-black border-t border-white/10"
-        style={{ bottom: Platform.OS === 'ios' ? 85 : 65 }}
+         className="absolute left-0 right-0 px-6 pt-4 pb-4 bg-black border-t border-white/10"
+          style={{ bottom: insets.bottom -20 }}
+
       >
         <Button
           label={`Checkout • ₹${total.toFixed(0)}`}

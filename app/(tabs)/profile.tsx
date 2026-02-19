@@ -273,7 +273,7 @@ Alert.alert(
 
   const MENU_ITEMS = [
     { icon: User, label: 'Personal Information', route: '/profile/personal-info' },
-    { icon: Gift, label: 'Coupons & Z-Points', route: '/loyalty' },
+    // { icon: Gift, label: 'Coupons & Z-Points', route: '/loyalty' },
     { icon: CreditCard, label: 'Payment Methods', route: '/profile/payments' },
     { icon: Heart, label: 'Dietary Preferences', route: '/profile/dietary-preferences' },
     { icon: Star, label: 'Your Favorites', route: '/profile/favorites' },
@@ -302,27 +302,19 @@ Alert.alert(
     <Layout className="flex-1 bg-black" safeArea>
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         <View className="items-center pt-8 pb-8">
-          <View className="relative mb-4">
-            <View className="w-28 h-28 rounded-full border-[3px] border-[#FF5500] p-1">
-              <Image
-                source={{
-                  uri:
-                    profileImage ||
-                    user.profileImage ||
-                    'https://github.com/shadcn.png',
-                }}
-                className="w-full h-full rounded-full"
-              />
-            </View>
+        <View className="relative mb-4">
+  <View className="w-28 h-28 rounded-full border-[3px] border-[#FF5500] p-1">
+    <Image
+      source={{
+        uri:
+          user.profileImage ||
+          'https://github.com/shadcn.png',
+      }}
+      className="w-full h-full rounded-full"
+    />
+  </View>
+</View>
 
-            <TouchableOpacity
-              onPress={openImageOptions}
-              activeOpacity={0.8}
-              className="absolute bottom-0 right-0 bg-[#FF5500] p-2 rounded-full border-2 border-black"
-            >
-              <CameraIcon size={18} color="white" />
-            </TouchableOpacity>
-          </View>
 
           <Text className="text-2xl font-black text-white mb-1 tracking-tight">
             {user.name || 'Foodie'}
