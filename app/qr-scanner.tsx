@@ -50,17 +50,24 @@ const handleBarCodeScanned = async ({ data }: any) => {
       throw new Error("Invalid QR format");
     }
 
-    const qrOrderId = parts[1];
-    const qrPickupToken = parts[2];
+    // const qrOrderId = parts[1];
+    // const qrPickupToken = parts[2];
 
-    console.log("Extracted qrOrderId:", qrOrderId);
+    const qrPickupToken = parts[2]; // keep pickup token from QR
+
+if (!orderId) {
+  throw new Error("Missing current order ID");
+}
+
+
+    console.log("Extracted OrderId:", orderId);
     console.log("Extracted qrPickupToken:", qrPickupToken);
 
     // ===============================
     // STEP 3: PREPARE REQUEST BODY
     // ===============================
     const requestBody = {
-      orderId: qrOrderId,
+      orderId: orderId,
       pickupToken: qrPickupToken,
     };
 

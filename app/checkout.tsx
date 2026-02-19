@@ -162,7 +162,8 @@ export default function CheckoutScreen() {
         // Save Preference
         await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
 
-        const newOrder = await placeOrder(selectedTime, paymentMethod, instructions);
+        const newOrder = await placeOrder(selectedTime, paymentMethod, instructions,  appliedCoupon?.code   // ✅ only sends if applied
+);
         // Play Success Sound
         await playSound('order_placed');
         // Success - navigate with orderId

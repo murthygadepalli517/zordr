@@ -53,7 +53,8 @@ export interface Order {
   | 'cancelled'
   | 'out_for_delivery'
   | 'delivered'
-  | 'picked_up';
+  | 'picked_up'
+  | 'expired';
   createdAt: string;
   isDeal?: boolean;
   discount?: string;
@@ -150,7 +151,8 @@ interface StoreContextType {
   clearCart: () => Promise<void>;
 
   orders: Order[];
-  placeOrder: (time: string, paymentMethod: string, specialInstructions?: string) => Promise<Order>;
+  placeOrder: (time: string, paymentMethod: string, specialInstructions?: string,  couponCode?: string
+) => Promise<Order>;
   cancelOrder: (id: string) => void;
 
   favorites: string[];
@@ -610,18 +612,31 @@ const updateUserMutation = useMutation({
   const placeOrder = React.useCallback(async (
     time: string,
     paymentMethod: string,
-    specialInstructions?: string
+    specialInstructions?: string,
+      couponCode?: string
+
   ): Promise<Order> => {
     if (!authToken) throw new Error('User not authenticated');
     try {
-      const result = await placeOrderMutation.mutateAsync({
-        items: cart.map((item: CartItem) => ({ id: item.id, quantity: item.quantity })),
-        pickupSlot: time,
-        pickupTime: time, // Send both for compatibility
-        outletId: cart[0]?.outletId,
-        paymentMethod: paymentMethod,
-        specialInstructions: specialInstructions,
-      });
+  const body: any = {
+  items: cart.map((item: CartItem) => ({
+    id: item.id,
+    quantity: item.quantity,
+  })),
+  pickupSlot: time,
+  pickupTime: time,
+  outletId: cart[0]?.outletId,
+  paymentMethod: paymentMethod,
+  specialInstructions: specialInstructions,
+};
+
+// ✅ Only attach coupon if it exists
+if (couponCode) {
+  body.couponCode = couponCode;
+}
+
+const result = await placeOrderMutation.mutateAsync(body);
+
       return result as Order;
     } catch (error: any) {
       showAlert({

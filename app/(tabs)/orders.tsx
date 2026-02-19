@@ -38,7 +38,7 @@ export default function OrdersScreen() {
   );
 
   const pastOrders = orders.filter((o) =>
-    ['delivered', 'completed', 'cancelled'].includes(o.status)
+    ['delivered', 'completed', 'cancelled','expired'].includes(o.status)
   );
 
   // TODO: Backend needs to implement frequently ordered items endpoint
@@ -96,6 +96,8 @@ export default function OrdersScreen() {
       case 'completed':
         return 'text-gray-400';
       case 'cancelled':
+        return 'text-red-500';
+      case 'expired':
         return 'text-red-500';
       default:
         return 'text-gray-500';
@@ -270,8 +272,10 @@ export default function OrdersScreen() {
                   </View>
                 )}
 
-                {(activeTab === 'reorder' || activeTab === 'past') &&
-                  order.status !== 'cancelled' && (
+                {/* {(activeTab === 'reorder' || activeTab === 'past') &&
+                  order.status !== 'cancelled' && ( */}
+                  {(activeTab === 'reorder' || activeTab === 'past') &&
+                  !['cancelled', 'expired'].includes(order.status) && (
                     <TouchableOpacity
                       onPress={() => handleReorder(order)}
                       className="mt-2 py-3 rounded-xl bg-[#FF5500] flex-row items-center justify-center gap-2"
