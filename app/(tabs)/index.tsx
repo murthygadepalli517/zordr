@@ -296,7 +296,7 @@ const insets = useSafeAreaInsets();
                 <Animated.View
                   style={[
                     headerAnimatedStyle,
-                    { paddingHorizontal: 24, paddingBottom: 16, zIndex: 50 },
+                    { paddingHorizontal: 24, paddingBottom: 16 },
                   ]}
                 >
                   <View className="flex-row justify-between items-center">
@@ -497,7 +497,7 @@ const insets = useSafeAreaInsets();
 
                   {/* ACTIVE ORDERS (Dynamic Island Style) */}
                   {activeOrders.length > 0 && (
-                    <View className="mt-2 w-full px-0 pb-0 z-50 bg-transparent">
+                    <View className="mt-2 w-full px-0 pb-0 bg-transparent">
                       <ScrollView
                         horizontal
                         pagingEnabled

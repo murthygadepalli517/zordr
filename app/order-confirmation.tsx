@@ -48,6 +48,18 @@ import { playSound } from '../utils/sound';
  * - Auto-redirects to pickup success screen when status is 'completed'.
  */
 export default function OrderConfirmationScreen() {
+
+
+  type OrderItem = {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+  outletId: string;
+  isReadyToPick: boolean;
+  prepTime: number;
+};
   const router = useRouter();
   const params = useLocalSearchParams();
   const { orders, authToken } = useStore();
@@ -304,6 +316,36 @@ export default function OrderConfirmationScreen() {
              <Text className="text-5xl font-black text-white tracking-tighter">
               #{activeOrder.id.slice(-5).toUpperCase()}
             </Text>
+<View className="w-full items-center mb-6">
+  <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-4">
+    PREPARATION TIME
+  </Text>
+
+  {activeOrder.items?.length ? (
+    activeOrder.items.map((item:OrderItem) => (
+      <View
+        key={item.id}
+        className="w-[85%] bg-[#252525] px-4 py-3 rounded-2xl flex-row justify-between items-center mb-3"
+      >
+        <View>
+          <Text className="text-white font-bold text-base">
+            {item.name}
+          </Text>
+          <Text className="text-gray-400 text-xs">
+            Qty: {item.quantity}
+          </Text>
+        </View>
+
+        <Text className="text-orange-400 font-black text-lg">
+          {item.prepTime ? `${item.prepTime} mins` : 'N/A'}
+        </Text>
+      </View>
+    ))
+  ) : (
+    <Text className="text-white">N/A</Text>
+  )}
+</View>
+            
           </View>
 
           <View className="w-[80%] h-[1px] bg-white/5 mb-8" />

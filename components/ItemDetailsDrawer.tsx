@@ -281,10 +281,10 @@ export default function ItemDetailsDrawer({
                     {item.isReadyToPick ? "Ready to Pick" : `${item.prepTime || 15} min`}
                   </Text>
                 </View>
-                <View className="flex-row items-center bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                {/* <View className="flex-row items-center bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                   <Flame size={14} color="#ef4444" />
                   <Text className="text-white text-xs font-bold ml-1.5">Popular</Text>
-                </View>
+                </View> */}
               </View>
 
               {!canOrder && (
@@ -298,8 +298,7 @@ export default function ItemDetailsDrawer({
               <View className="space-y-4 mb-6">
                 <Text className="text-white font-bold text-lg">Details</Text>
                 <Text className="text-gray-400 text-sm leading-6">
-                  Made with premium ingredients and authentic spices. Served hot with customized
-                  dips and sides. Allergens information available upon request.
+                {item.desc || item.description || 'Delicious meal prepared fresh.'}
                 </Text>
               </View>
             </ScrollView>
