@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Layout } from '../../components/ui/layout';
 import { Text } from '../../components/ui/text';
 import { useStore, Order } from '../../context/StoreContext';
+import { useLocalSearchParams } from 'expo-router';
 
 
 import {
@@ -28,9 +29,13 @@ import { hapticFeedback } from '../../utils/haptics';
 import { PrepTimeProgressBar } from '../../components/PrepTimeProgressBar';
 
 export default function OrdersScreen() {
+  const { tab } = useLocalSearchParams();
+
   const router = useRouter();
   const { orders, cancelOrder, addToCart, clearCart } = useStore();
-  const [activeTab, setActiveTab] = useState<'active' | 'reorder' | 'past'>('active');
+ const [activeTab, setActiveTab] = useState<'active' | 'reorder' | 'past'>(
+  tab === 'past' ? 'past' : 'active'
+);
 const [ratings, setRatings] = useState<{
   [orderId: string]: {
     rating: number;
@@ -38,7 +43,6 @@ const [ratings, setRatings] = useState<{
     submitted: boolean;
   };
 }>({});
-
 
 
   // State for Custom Cancel Modal

@@ -114,7 +114,10 @@ export default function FavoritesScreen() {
                         </Text>
 
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-primary font-bold text-lg">
+                          <Text
+                            className="text-primary font-bold text-lg"
+                            style={{ marginRight: 12 }}  // ← adjust 10–16 if needed
+                          >
                             ₹{item.price}
                           </Text>
 
@@ -132,33 +135,104 @@ export default function FavoritesScreen() {
                               </Text>
                             </TouchableOpacity>
                           ) : (
-                            <View className="flex-row items-center bg-primary rounded-lg overflow-hidden">
+                            // <View className="flex-row items-center bg-primary rounded-lg overflow-hidden">
+                            //   <TouchableOpacity
+                            //     onPress={(e) => {
+                            //       e.stopPropagation();
+                            //       hapticFeedback.light();
+                            //       updateQuantity(item.id, -1);
+                            //     }}
+                            //     className="w-7 h-7 items-center justify-center"
+                            //   >
+                            //     <Minus size={14} color="white" />
+                            //   </TouchableOpacity>
+
+                            //   <View className="px-3 h-7 bg-black items-center justify-center">
+                            //     <Text className="font-bold text-sm text-white">
+                            //       {quantity}
+                            //     </Text>
+                            //   </View>
+
+                            //   <TouchableOpacity
+                            //     onPress={(e) => {
+                            //       e.stopPropagation();
+                            //       hapticFeedback.light();
+                            //       updateQuantity(item.id, 1);
+                            //     }}
+                            //     className="w-7 h-7 items-center justify-center"
+                            //   >
+                            //     <Plus size={14} color="white" />
+                            //   </TouchableOpacity>
+                            // </View>
+
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#111111',
+                                borderRadius: 999,
+                                borderWidth: 1,
+                                borderColor: '#ea580c', // SAME primary as selected category
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {/* MINUS */}
                               <TouchableOpacity
                                 onPress={(e) => {
                                   e.stopPropagation();
                                   hapticFeedback.light();
                                   updateQuantity(item.id, -1);
                                 }}
-                                className="w-7 h-7 items-center justify-center"
+                                activeOpacity={0.7}
+                                style={{
+                                  width: 34,
+                                  height: 34,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: 'rgba(234,88,12,0.1)', // subtle orange bg
+                                }}
                               >
-                                <Minus size={14} color="white" />
+                                <Minus size={16} color="#ea580c" />
                               </TouchableOpacity>
 
-                              <View className="px-3 h-7 bg-black items-center justify-center">
-                                <Text className="font-bold text-sm text-white">
+                              {/* QUANTITY */}
+                              <View
+                                style={{
+                                  paddingHorizontal: 14,
+                                  height: 34,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: '#000',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: '#fff',
+                                    fontWeight: '800',
+                                    fontSize: 14,
+                                  }}
+                                >
                                   {quantity}
                                 </Text>
                               </View>
 
+                              {/* PLUS */}
                               <TouchableOpacity
                                 onPress={(e) => {
                                   e.stopPropagation();
                                   hapticFeedback.light();
                                   updateQuantity(item.id, 1);
                                 }}
-                                className="w-7 h-7 items-center justify-center"
+                                activeOpacity={0.7}
+                                style={{
+                                  width: 34,
+                                  height: 34,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: '#ea580c', // EXACT SAME orange
+                                }}
                               >
-                                <Plus size={14} color="white" />
+                                <Plus size={16} color="#fff" />
                               </TouchableOpacity>
                             </View>
                           )}
@@ -193,9 +267,9 @@ export default function FavoritesScreen() {
             left: 16,
             right: 16,
             bottom: insets.bottom,
-            backgroundColor: '#f97316',
+            backgroundColor: '#ea580c',
             borderRadius: 24,
-            shadowColor: '#f97316',
+            shadowColor: '#ea580c',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,
             shadowRadius: 8,

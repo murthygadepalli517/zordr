@@ -86,6 +86,8 @@ export default function HomeScreen() {
     fetchDeals,
     isAuthenticated,
     setActiveOutletId,
+      activeOutletId,
+
     refreshApp,
     categories,
   } = useStore();
@@ -93,7 +95,7 @@ const { user } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedOutlet, setSelectedOutlet] = useState('');
+  
 
   const [isOutletDropdownOpen, setIsOutletDropdownOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -139,18 +141,24 @@ const insets = useSafeAreaInsets();
     }, [])
   );
 
-  useEffect(() => {
-    if (campusOutlets.length > 0 && !selectedOutlet) {
-      setSelectedOutlet(campusOutlets[0].id);
-    }
-  }, [selectedCampus, campusOutlets]);
+ useEffect(() => {
+  if (campusOutlets.length === 0) return;
 
+  const isActiveOutletValid = campusOutlets.some(
+    (outlet) => outlet.id === activeOutletId
+  );
+
+  // Only set default if current outlet is invalid
+  if (!isActiveOutletValid) {
+    setActiveOutletId(campusOutlets[0].id);
+  }
+}, [selectedCampus, campusOutlets]);
   useEffect(() => {
-    if (selectedOutlet && isAuthenticated) {
-      console.log('📥 Setting active outlet:', selectedOutlet);
-      setActiveOutletId(selectedOutlet);
+    if (activeOutletId && isAuthenticated) {
+      console.log('📥 Setting active outlet:', activeOutletId);
+      setActiveOutletId(activeOutletId);
     }
-  }, [selectedOutlet, isAuthenticated]);
+  }, [activeOutletId, isAuthenticated]);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -251,7 +259,7 @@ const insets = useSafeAreaInsets();
     if (searchQuery.length > 0) {
       matchesBase = matchesCategory && item.name.toLowerCase().includes(searchQuery.toLowerCase());
     } else {
-      matchesBase = matchesCategory && (item.outletId === selectedOutlet || !selectedOutlet);
+      matchesBase = matchesCategory && (item.outletId === activeOutletId || !activeOutletId);
     }
 
     if (!matchesBase) return false;
@@ -260,7 +268,7 @@ const insets = useSafeAreaInsets();
     if (activeFilter === 'deals') return false;
 
     return true;
-  }), [dynamicItems, activeCategory, searchQuery, selectedOutlet, activeFilter]);
+  }), [dynamicItems, activeCategory, searchQuery, activeOutletId, activeFilter]);
 
   const openItemDetails = (item: any) => {
     hapticFeedback.selection();
@@ -293,12 +301,17 @@ const insets = useSafeAreaInsets();
                 }
               >
                 {/* HEADER */}
-                <Animated.View
-                  style={[
-                    headerAnimatedStyle,
-                    { paddingHorizontal: 24, paddingBottom: 16 },
-                  ]}
-                >
+               <Animated.View
+  style={[
+    headerAnimatedStyle,
+    {
+      paddingHorizontal: 24,
+      paddingBottom: 16,
+      zIndex: 1000,
+      elevation: 1000,
+    },
+  ]}
+>
                   <View className="flex-row justify-between items-center">
                     <View className="relative z-50">
                       <View className="flex-row items-center gap-2 mb-1">
@@ -325,7 +338,7 @@ const insets = useSafeAreaInsets();
                           className="text-primary max-w-[200px] text-base font-semibold"
                           numberOfLines={1}
                         >
-                          {outlets.find((o) => o.id === selectedOutlet)?.name || 'Select Outlet'}
+                          {outlets.find((o) => o.id === activeOutletId)?.name || 'Select Outlet'}
                         </Text>
                         <Animated.View style={chevronStyle}>
                           <ChevronDown size={16} color="#f97316" />
@@ -346,7 +359,7 @@ const insets = useSafeAreaInsets();
                                 e.stopPropagation();
                                 Keyboard.dismiss();
                                 if (outlet.isOpen) {
-                                  setSelectedOutlet(outlet.id);
+                                  setActiveOutletId(outlet.id);
                                   toggleDropdown();
                                   setSearchQuery('');
                                 } else {
@@ -359,19 +372,19 @@ const insets = useSafeAreaInsets();
                                   );
                                 }
                               }}
-                              className={`flex-row justify-between items-center p-3 rounded-xl mb-1 ${selectedOutlet === outlet.id ? 'bg-white/10' : 'bg-transparent'} ${!outlet.isOpen ? 'opacity-50' : ''}`}
+                              className={`flex-row justify-between items-center p-3 rounded-xl mb-1 ${activeOutletId === outlet.id ? 'bg-white/10' : 'bg-transparent'} ${!outlet.isOpen ? 'opacity-50' : ''}`}
                             >
                               <View className="flex-row items-center gap-3">
                                 <View
                                   className={`w-2 h-2 rounded-full ${outlet.isOpen ? 'bg-green-500' : 'bg-red-500'}`}
                                 />
                                 <Text
-                                  className={`font-medium text-xs ${selectedOutlet === outlet.id ? 'text-white font-bold' : 'text-gray-300'}`}
+                                  className={`font-medium text-xs ${activeOutletId === outlet.id ? 'text-white font-bold' : 'text-gray-300'}`}
                                 >
                                   {outlet.name}
                                 </Text>
                               </View>
-                              {selectedOutlet === outlet.id && <Check size={14} color="#f97316" />}
+                              {activeOutletId === outlet.id && <Check size={14} color="#f97316" />}
                             </TouchableOpacity>
                           ))}
                         </Animated.View>
@@ -606,7 +619,7 @@ const insets = useSafeAreaInsets();
                           {activeCategory === 'All'
                             ? searchQuery
                               ? `Results`
-                              : `At ${outlets.find((o) => o.id === selectedOutlet)?.name || 'Outlet'}`
+                              : `At ${outlets.find((o) => o.id === activeOutletId)?.name || 'Outlet'}`
                             : `${activeCategory} Menu`}
                         </Text>
                       </View>
@@ -614,7 +627,7 @@ const insets = useSafeAreaInsets();
                       {filteredItems.length > 0 ? (
                         filteredItems.map((item, index) => {
                           const isFav = favorites.includes(String(item.id));
-                          const isDifferentOutlet = item.outletId !== selectedOutlet;
+                          const isDifferentOutlet = item.outletId !== activeOutletId;
                           const cartItem = cart.find((c) => c.id === item.id);
                           const inCart = !!cartItem;
                           const quantity = cartItem?.quantity || 0;
@@ -697,33 +710,77 @@ const insets = useSafeAreaInsets();
                                         <Text className="text-white text-xs font-bold">ADD</Text>
                                       </TouchableOpacity>
                                     ) : (
-                                      <View className="flex-row items-center bg-primary rounded-lg overflow-hidden">
-                                        <TouchableOpacity
-                                          onPress={(e) => {
-                                            e.stopPropagation();
-                                            hapticFeedback.light();
-                                            updateQuantity(item.id, -1);
-                                          }}
-                                          className="w-7 h-7 items-center justify-center"
-                                        >
-                                          <Minus size={14} color="white" />
-                                        </TouchableOpacity>
-                                        <View className="px-3 h-7 bg-black items-center justify-center">
-                                          <Text className="font-bold text-sm text-white">
-                                            {quantity}
-                                          </Text>
-                                        </View>
-                                        <TouchableOpacity
-                                          onPress={(e) => {
-                                            e.stopPropagation();
-                                            hapticFeedback.light();
-                                            updateQuantity(item.id, 1);
-                                          }}
-                                          className="w-7 h-7 items-center justify-center"
-                                        >
-                                          <Plus size={14} color="white" />
-                                        </TouchableOpacity>
-                                      </View>
+                                 <View
+  style={{
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111111',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#f97316',
+    overflow: 'hidden',
+  }}
+>
+  {/* MINUS */}
+  <TouchableOpacity
+    onPress={(e) => {
+      e.stopPropagation();
+      hapticFeedback.light();
+      updateQuantity(item.id, -1);
+    }}
+    activeOpacity={0.7}
+    style={{
+      width: 34,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(249,115,22,0.1)',
+    }}
+  >
+    <Minus size={16} color="#f97316" />
+  </TouchableOpacity>
+
+  {/* QUANTITY */}
+  <View
+    style={{
+      paddingHorizontal: 14,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#000',
+    }}
+  >
+    <Text
+      style={{
+        color: '#fff',
+        fontWeight: '800',
+        fontSize: 14,
+      }}
+    >
+      {quantity}
+    </Text>
+  </View>
+
+  {/* PLUS */}
+  <TouchableOpacity
+    onPress={(e) => {
+      e.stopPropagation();
+      hapticFeedback.light();
+      updateQuantity(item.id, 1);
+    }}
+    activeOpacity={0.7}
+    style={{
+      width: 34,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#ea580c', // match your primary
+
+    }}
+  >
+    <Plus size={16} color="#fff" />
+  </TouchableOpacity>
+</View>
                                     )}
                                   </View>
                                 </View>
@@ -821,9 +878,9 @@ const insets = useSafeAreaInsets();
       left: 16,
       right: 16,
       bottom: insets.bottom,
-      backgroundColor: '#f97316', // ensure visible bg
+      backgroundColor: '#ea580c', // match your primary
       borderRadius: 24,
-      shadowColor: '#f97316',
+      shadowColor: '#ea580c',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,

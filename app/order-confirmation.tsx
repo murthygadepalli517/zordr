@@ -305,17 +305,17 @@ export default function OrderConfirmationScreen() {
         >
           <View className="w-full items-center pt-8 pb-6">
             <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
-              ORDER NUMBER
+              ORDER ID
             </Text>
             <Text className="text-5xl font-black text-white tracking-tighter">
               #{activeOrder.orderNumber.slice(-5).toUpperCase()}
             </Text>
-            <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
+            {/* <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
               ORDER ID
             </Text>
              <Text className="text-5xl font-black text-white tracking-tighter">
               #{activeOrder.id.slice(-5).toUpperCase()}
-            </Text>
+            </Text> */}
 <View className="w-full items-center mb-6">
   <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-4">
     PREPARATION TIME
