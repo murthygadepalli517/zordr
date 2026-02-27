@@ -698,90 +698,49 @@ const insets = useSafeAreaInsets();
                                       </Text>
                                     </View>
 
-                                    {!inCart ? (
-                                      <TouchableOpacity
-                                        onPress={async (e) => {
-                                          e.stopPropagation();
-                                          hapticFeedback.selection();
-                                          await addToCart(item, 1);
-                                        }}
-                                        className="bg-primary px-4 py-2 rounded-full"
-                                      >
-                                        <Text className="text-white text-xs font-bold">ADD</Text>
-                                      </TouchableOpacity>
-                                    ) : (
-                                 <View
-  style={{
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#111111',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#f97316',
-    overflow: 'hidden',
-  }}
->
-  {/* MINUS */}
+              {!inCart ? (
   <TouchableOpacity
-    onPress={(e) => {
+    onPress={async (e) => {
       e.stopPropagation();
-      hapticFeedback.light();
-      updateQuantity(item.id, -1);
+      hapticFeedback.selection();
+      await addToCart(item, 1);
     }}
-    activeOpacity={0.7}
-    style={{
-      width: 34,
-      height: 34,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(249,115,22,0.1)',
-    }}
+    className="bg-primary px-4 py-2 rounded-full"
   >
-    <Minus size={16} color="#f97316" />
+    <Text className="text-white text-xs font-bold">ADD</Text>
   </TouchableOpacity>
-
-  {/* QUANTITY */}
-  <View
-    style={{
-      paddingHorizontal: 14,
-      height: 34,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#000',
-    }}
-  >
-    <Text
-      style={{
-        color: '#fff',
-        fontWeight: '800',
-        fontSize: 14,
+) : (
+  <View className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border border-white/5">
+    <TouchableOpacity
+      onPress={(e) => {
+        e.stopPropagation();
+        hapticFeedback.light();
+        updateQuantity(item.id, -1);
       }}
     >
+      {quantity === 1 ? (
+        <Minus size={16} color="#ef4444" />
+      ) : (
+        <Minus size={16} color="white" />
+      )}
+    </TouchableOpacity>
+
+    <Text className="font-bold text-sm w-4 text-center text-white">
       {quantity}
     </Text>
+
+    <TouchableOpacity
+      onPress={(e) => {
+        e.stopPropagation();
+        hapticFeedback.light();
+        updateQuantity(item.id, 1);
+      }}
+    >
+      <Plus size={16} color="white" />
+    </TouchableOpacity>
   </View>
-
-  {/* PLUS */}
-  <TouchableOpacity
-    onPress={(e) => {
-      e.stopPropagation();
-      hapticFeedback.light();
-      updateQuantity(item.id, 1);
-    }}
-    activeOpacity={0.7}
-    style={{
-      width: 34,
-      height: 34,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#ea580c', // match your primary
-
-    }}
-  >
-    <Plus size={16} color="#fff" />
-  </TouchableOpacity>
-</View>
-                                    )}
+)}
+                                    
                                   </View>
                                 </View>
                               </TouchableOpacity>

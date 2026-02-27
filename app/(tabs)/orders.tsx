@@ -80,12 +80,45 @@ const { authToken } = useStore(); // Get the stored token dynamically
     }
   };
 
-  useEffect(() => {
+//   useEffect(() => {
+//   if (!authToken) return;
+
+//   const loadReviews = async () => {
+//     const newRatings: typeof ratings = {};
+//     for (const order of pastOrders) {
+//       const review = await fetchReview(order.id, authToken);
+//       if (review) {
+//         newRatings[order.id] = {
+//           rating: review.rating,
+//           review: review.comment,
+//           submitted: true,
+//         };
+//       }
+//     }
+//     setRatings((prev) => ({ ...prev, ...newRatings }));
+//   };
+
+//   loadReviews();
+// }, [authToken, pastOrders]);
+
+
+useEffect(() => {
   if (!authToken) return;
+
+  const completedOrders = orders.filter(
+    (o) => o.status === 'completed'
+  );
+
+  const ordersToFetch = completedOrders.filter(
+    (order) => !ratings[order.id]?.submitted
+  );
+
+  if (ordersToFetch.length === 0) return;
 
   const loadReviews = async () => {
     const newRatings: typeof ratings = {};
-    for (const order of pastOrders) {
+
+    for (const order of ordersToFetch) {
       const review = await fetchReview(order.id, authToken);
       if (review) {
         newRatings[order.id] = {
@@ -95,11 +128,14 @@ const { authToken } = useStore(); // Get the stored token dynamically
         };
       }
     }
-    setRatings((prev) => ({ ...prev, ...newRatings }));
+
+    if (Object.keys(newRatings).length > 0) {
+      setRatings((prev) => ({ ...prev, ...newRatings }));
+    }
   };
 
   loadReviews();
-}, [authToken, pastOrders]);
+}, [orders, authToken]);
 
   const handleReorder = (order: Order) => {
     hapticFeedback.medium();

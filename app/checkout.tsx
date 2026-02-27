@@ -11,11 +11,12 @@ import { hapticFeedback } from '../utils/haptics';
 import { playSound } from '../utils/sound';
 import { SlideButton } from '../components/ui/SlideButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import RazorpayCheckout from 'react-native-razorpay';
 
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { cart, placeOrder, orders, getOutletSlots, outlets } = useStore();
+  const { cart, placeOrder, orders, getOutletSlots, outlets ,user} = useStore();
   const insets = useSafeAreaInsets();
 
 
@@ -160,57 +161,153 @@ export default function CheckoutScreen() {
   const discount = appliedCoupon ? appliedCoupon.discount : 0;
   const total = Math.max(0, subtotal - discount); // Zero Delivery Fee
 
-  const handleOrderSuccess = async () => {
-    if (selectedTime) {
-      try {
-        // Save Preference
-        await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
+//   const handleOrderSuccess = async () => {
+//     if (selectedTime) {
+//       try {
+//         // Save Preference
+//         await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
 
-        const newOrder = await placeOrder(selectedTime, paymentMethod, instructions,  appliedCoupon?.code   // ✅ only sends if applied
-);
-        // Play Success Sound
-        await playSound('order_placed');
-        // Success - navigate with orderId
-        router.replace({ pathname: '/order-confirmation', params: { orderId: newOrder.id } });
-      } catch (error: any) {
-        console.error('Order placement failed:', error);
+//         const newOrder = await placeOrder(selectedTime, paymentMethod, instructions,  appliedCoupon?.code   // ✅ only sends if applied
+// );
+//         // Play Success Sound
+//         await playSound('order_placed');
+//         // Success - navigate with orderId
+//         router.replace({ pathname: '/order-confirmation', params: { orderId: newOrder.id } });
+//       } catch (error: any) {
+//         console.error('Order placement failed:', error);
 
-        const errorMessage = error.message || 'Unknown error';
+//         const errorMessage = error.message || 'Unknown error';
 
-        // Check for unavailable item error
-        if (errorMessage.includes('not found or unavailable')) {
-          // Try to extract ID
-          const match = errorMessage.match(/ID ([a-f0-9-]+) not found/);
-          let itemName = 'An item';
+//         // Check for unavailable item error
+//         if (errorMessage.includes('not found or unavailable')) {
+//           // Try to extract ID
+//           const match = errorMessage.match(/ID ([a-f0-9-]+) not found/);
+//           let itemName = 'An item';
 
-          if (match && match[1]) {
-            const itemId = match[1];
-            const cartItem = cart.find((i) => i.id === itemId);
-            if (cartItem) {
-              itemName = cartItem.name;
-            }
-          }
+//           if (match && match[1]) {
+//             const itemId = match[1];
+//             const cartItem = cart.find((i) => i.id === itemId);
+//             if (cartItem) {
+//               itemName = cartItem.name;
+//             }
+//           }
 
-          Alert.alert(
-            'Item Unavailable',
-            `${itemName} is no longer available. Please remove it from your cart to proceed.`,
-            [
-              { text: 'OK', onPress: () => router.back() }, // Go back to cart
-            ]
-          );
-        } else {
-          Alert.alert(
-            'Order Failed',
-            errorMessage || 'Could not place your order. Please try again.'
-          );
-        }
+//           Alert.alert(
+//             'Item Unavailable',
+//             `${itemName} is no longer available. Please remove it from your cart to proceed.`,
+//             [
+//               { text: 'OK', onPress: () => router.back() }, // Go back to cart
+//             ]
+//           );
+//         } else {
+//           Alert.alert(
+//             'Order Failed',
+//             errorMessage || 'Could not place your order. Please try again.'
+//           );
+//         }
 
-        // Re-throw to let SlideButton know it failed
-        throw error;
-      }
+//         // Re-throw to let SlideButton know it failed
+//         throw error;
+//       }
+//     }
+//   };
+
+
+const handleOrderSuccess = async () => {
+  if (!selectedTime) return;
+
+  try {
+    await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
+
+    const backendPaymentMethod =
+  paymentMethod === 'COD' ? 'COD' : 'UPI';
+
+    // 1️⃣ Create Order in your DB
+    const newOrder = await placeOrder(
+      selectedTime,
+      backendPaymentMethod,
+      instructions,
+      appliedCoupon?.code
+    );
+
+    // 2️⃣ If COD → Done
+    if (paymentMethod === 'COD') {
+      await playSound('order_placed');
+      router.replace({
+        pathname: '/order-confirmation',
+        params: { orderId: newOrder.id },
+      });
+      return;
     }
-  };
 
+    // 3️⃣ If Prepaid → Create Razorpay Order
+    const { apiFetch } = require('../utils/api');
+
+    const paymentOrder = await apiFetch(
+      'payments/create-order',
+      {
+        method: 'POST',
+        body: { orderId: newOrder.id },
+      },
+      await AsyncStorage.getItem('authToken') || ''
+    );
+
+    // 4️⃣ Open Razorpay
+    const options = {
+      description: 'Campus Food Order',
+      image: 'https://yourlogo.com/logo.png',
+      currency: 'INR',
+      key: 'rzp_test_S7KeATm2fFOCTu', // ✅ ONLY KEY ID
+      amount: paymentOrder.amount,
+      order_id: paymentOrder.razorpayOrderId,
+      name: 'Your App Name',
+      prefill: {
+        email: user?.email,
+        contact: user?.phone,
+        name: user?.name,
+      },
+      theme: { color: '#FF5500' },
+    };
+
+    RazorpayCheckout.open(options)
+      .then(async (data: any) => {
+        // 5️⃣ Verify Payment
+        await apiFetch(
+          'payments/verify',
+          {
+            method: 'POST',
+            body: {
+              razorpay_order_id: data.razorpay_order_id,
+              razorpay_payment_id: data.razorpay_payment_id,
+              razorpay_signature: data.razorpay_signature,
+              orderId: newOrder.id,
+            },
+          },
+          await AsyncStorage.getItem('authToken') || ''
+        );
+
+        await playSound('order_placed');
+
+        router.replace({
+          pathname: '/order-confirmation',
+          params: { orderId: newOrder.id },
+        });
+      })
+      .catch((error: any) => {
+        Alert.alert(
+          'Payment Failed',
+          error.description || 'Transaction was cancelled.'
+        );
+      });
+
+  } catch (error: any) {
+    Alert.alert(
+      'Order Failed',
+      error.message || 'Could not place your order.'
+    );
+    throw error;
+  }
+};
   return (
     <Layout className="flex-1 bg-black" safeArea>
       <Stack.Screen options={{ headerShown: false }} />

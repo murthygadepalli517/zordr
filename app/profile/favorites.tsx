@@ -165,76 +165,36 @@ export default function FavoritesScreen() {
                             //   </TouchableOpacity>
                             // </View>
 
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                backgroundColor: '#111111',
-                                borderRadius: 999,
-                                borderWidth: 1,
-                                borderColor: '#ea580c', // SAME primary as selected category
-                                overflow: 'hidden',
-                              }}
-                            >
-                              {/* MINUS */}
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  hapticFeedback.light();
-                                  updateQuantity(item.id, -1);
-                                }}
-                                activeOpacity={0.7}
-                                style={{
-                                  width: 34,
-                                  height: 34,
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  backgroundColor: 'rgba(234,88,12,0.1)', // subtle orange bg
-                                }}
-                              >
-                                <Minus size={16} color="#ea580c" />
-                              </TouchableOpacity>
+                           <View className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border border-white/5">
+  
+  {/* MINUS */}
+  <TouchableOpacity
+    onPress={(e) => {
+      e.stopPropagation();
+      hapticFeedback.light();
+      updateQuantity(item.id, -1); // SAME LOGIC
+    }}
+  >
+    <Minus size={16} color="white" />
+  </TouchableOpacity>
 
-                              {/* QUANTITY */}
-                              <View
-                                style={{
-                                  paddingHorizontal: 14,
-                                  height: 34,
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  backgroundColor: '#000',
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    color: '#fff',
-                                    fontWeight: '800',
-                                    fontSize: 14,
-                                  }}
-                                >
-                                  {quantity}
-                                </Text>
-                              </View>
+  {/* QUANTITY */}
+  <Text className="font-bold text-sm w-4 text-center text-white">
+    {quantity}
+  </Text>
 
-                              {/* PLUS */}
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  hapticFeedback.light();
-                                  updateQuantity(item.id, 1);
-                                }}
-                                activeOpacity={0.7}
-                                style={{
-                                  width: 34,
-                                  height: 34,
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  backgroundColor: '#ea580c', // EXACT SAME orange
-                                }}
-                              >
-                                <Plus size={16} color="#fff" />
-                              </TouchableOpacity>
-                            </View>
+  {/* PLUS */}
+  <TouchableOpacity
+    onPress={(e) => {
+      e.stopPropagation();
+      hapticFeedback.light();
+      updateQuantity(item.id, 1); // SAME LOGIC
+    }}
+  >
+    <Plus size={16} color="white" />
+  </TouchableOpacity>
+
+</View>
                           )}
                         </View>
                       </View>
