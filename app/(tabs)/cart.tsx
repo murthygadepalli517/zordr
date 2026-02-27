@@ -158,7 +158,10 @@ const insets = useSafeAreaInsets();
                     ₹{item.price * item.quantity}
                   </Text>
 
-                  <View className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border border-white/5">
+                      <View
+                      className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
+                      style={{ borderColor: '#FF5500', borderWidth: 1.5 }}
+                    >
                     <TouchableOpacity onPress={() => handleDecrement(item.id, item.quantity)}>
                       {item.quantity === 1 ? (
                         <Trash2 size={16} color="#ef4444" />

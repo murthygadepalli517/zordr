@@ -710,7 +710,11 @@ const insets = useSafeAreaInsets();
     <Text className="text-white text-xs font-bold">ADD</Text>
   </TouchableOpacity>
 ) : (
-  <View className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border border-white/5">
+   <View
+                            className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
+                            style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
+                          >
+    
     <TouchableOpacity
       onPress={(e) => {
         e.stopPropagation();

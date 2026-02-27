@@ -165,37 +165,40 @@ export default function FavoritesScreen() {
                             //   </TouchableOpacity>
                             // </View>
 
-                           <View className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border border-white/5">
+                           <View
+                          className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
+                          style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
+                        >
   
-  {/* MINUS */}
-  <TouchableOpacity
-    onPress={(e) => {
-      e.stopPropagation();
-      hapticFeedback.light();
-      updateQuantity(item.id, -1); // SAME LOGIC
-    }}
-  >
-    <Minus size={16} color="white" />
-  </TouchableOpacity>
+                              {/* MINUS */}
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  hapticFeedback.light();
+                                  updateQuantity(item.id, -1); // SAME LOGIC
+                                }}
+                              >
+                                <Minus size={16} color="white" />
+                              </TouchableOpacity>
 
-  {/* QUANTITY */}
-  <Text className="font-bold text-sm w-4 text-center text-white">
-    {quantity}
-  </Text>
+                              {/* QUANTITY */}
+                              <Text className="font-bold text-sm w-4 text-center text-white">
+                                {quantity}
+                              </Text>
 
-  {/* PLUS */}
-  <TouchableOpacity
-    onPress={(e) => {
-      e.stopPropagation();
-      hapticFeedback.light();
-      updateQuantity(item.id, 1); // SAME LOGIC
-    }}
-  >
-    <Plus size={16} color="white" />
-  </TouchableOpacity>
+                              {/* PLUS */}
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  hapticFeedback.light();
+                                  updateQuantity(item.id, 1); // SAME LOGIC
+                                }}
+                              >
+                                <Plus size={16} color="white" />
+                              </TouchableOpacity>
 
-</View>
-                          )}
+                            </View>
+                                                      )}
                         </View>
                       </View>
                     </View>
