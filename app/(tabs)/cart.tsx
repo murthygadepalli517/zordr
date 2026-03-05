@@ -17,7 +17,8 @@ import { useStore } from '../../context/StoreContext';
 import { hapticFeedback } from '../../utils/haptics';
 import Animated, { FadeInRight, Layout as LayoutAnim } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -25,8 +26,7 @@ export default function CartScreen() {
   const { cart, updateQuantity, removeFromCart, stats } = useStore();
   const [usePoints, setUsePoints] = useState(false);
 const insets = useSafeAreaInsets();
-
-  // Intercept back gesture to navigate to home
+const [orderType, setOrderType] = useState<'Dine In' | 'Takeaway' | null>(null);  // Intercept back gesture to navigate to home
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       e.preventDefault();
@@ -45,6 +45,17 @@ const insets = useSafeAreaInsets();
     return () => backHandler.remove();
   }, [router]);
 
+
+  useFocusEffect(
+  useCallback(() => {
+    // When screen is focused → do nothing
+
+    return () => {
+      // When screen is unfocused (navigating away)
+      setOrderType(null);
+    };
+  }, [])
+);
   // Constants
   const TAX_RATE = 0.05;
   const POINTS_DISCOUNT_AMOUNT = 50; // Value of discount in Rupees
@@ -215,6 +226,82 @@ const insets = useSafeAreaInsets();
           </View>
         </TouchableOpacity> */}
 
+
+{/* Order Type Selection */}
+<View className="mb-6">
+  <Text className="font-bold text-white mb-3">Order Type</Text>
+
+  <View className="flex-row gap-4">
+    
+    {/* Dine In */}
+    <TouchableOpacity
+      onPress={() => {
+        hapticFeedback.selection();
+        setOrderType('Dine In');
+      }}
+      className={`flex-1 p-4 rounded-2xl border flex-row items-center justify-between ${
+        orderType === 'Dine In'
+          ? 'border-[#FF5500] bg-[#FF5500]/10'
+          : 'border-white/10 bg-[#1A1A1A]'
+      }`}
+    >
+      <Text
+        className={`font-semibold ${
+          orderType === 'Dine In' ? 'text-[#FF5500]' : 'text-gray-300'
+        }`}
+      >
+        Dine In
+      </Text>
+
+      <View
+        className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
+          orderType === 'Dine In'
+            ? 'border-[#FF5500] bg-[#FF5500]'
+            : 'border-gray-500'
+        }`}
+      >
+        {orderType === 'Dine In' && (
+          <View className="w-2 h-2 bg-white rounded-full" />
+        )}
+      </View>
+    </TouchableOpacity>
+
+    {/* Takeaway */}
+    <TouchableOpacity
+      onPress={() => {
+        hapticFeedback.selection();
+        setOrderType('Takeaway');
+      }}
+      className={`flex-1 p-4 rounded-2xl border flex-row items-center justify-between ${
+        orderType === 'Takeaway'
+          ? 'border-[#FF5500] bg-[#FF5500]/10'
+          : 'border-white/10 bg-[#1A1A1A]'
+      }`}
+    >
+      <Text
+        className={`font-semibold ${
+          orderType === 'Takeaway' ? 'text-[#FF5500]' : 'text-gray-300'
+        }`}
+      >
+        Takeaway
+      </Text>
+
+      <View
+        className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
+          orderType === 'Takeaway'
+            ? 'border-[#FF5500] bg-[#FF5500]'
+            : 'border-gray-500'
+        }`}
+      >
+        {orderType === 'Takeaway' && (
+          <View className="w-2 h-2 bg-white rounded-full" />
+        )}
+      </View>
+    </TouchableOpacity>
+
+  </View>
+</View>
+
         {/* Bill Details */}
         <View className="bg-[#1A1A1A] p-6 rounded-[32px] border border-white/5 space-y-3">
           <Text className="font-bold text-white mb-2">Order Summary</Text>
@@ -252,9 +339,18 @@ const insets = useSafeAreaInsets();
         <Button
           label={`Checkout • ₹${total.toFixed(0)}`}
           onPress={() => {
+             if (!orderType) {
+      Alert.alert('Select Order Type', 'Please choose Dine In or Takeaway.');
+      return;
+    }
             hapticFeedback.success();
-            router.push('/checkout');
-          }}
+          router.push({
+  pathname: '/checkout',
+  params: {
+    orderType: orderType
+  }
+});
+        }}
           size="lg"
           className="bg-[#FF5500]"
           labelClasses="text-white font-bold text-lg"

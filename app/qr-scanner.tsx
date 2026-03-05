@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect,useRef} from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { X } from 'lucide-react-native';
@@ -14,12 +14,31 @@ export default function QRScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!permission?.granted && permission?.canAskAgain) {
       requestPermission();
     }
   }, []);
+
+  useEffect(() => {
+  const startAnimation = () => {
+    scanLineAnim.setValue(0);
+
+    Animated.loop(
+      Animated.timing(scanLineAnim, {
+        toValue: FRAME_SIZE - 4,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  startAnimation();
+}, []);
+
 const handleBarCodeScanned = async ({ data }: any) => {
   if (scanned || verifying) {
     console.log("⚠️ Ignored scan (already scanning or verifying)");
@@ -181,54 +200,88 @@ if (!orderId) {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+ return (
+  <View style={styles.container}>
+    <StatusBar style="light" />
 
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
-        facing="back"
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['qr'],
-        }}
-      />
+    {/* CAMERA */}
+    <CameraView
+      style={StyleSheet.absoluteFillObject}
+      facing="back"
+      onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+      barcodeScannerSettings={{
+        barcodeTypes: ['qr'],
+      }}
+    />
 
-      {verifying && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#f97316" />
-          <Text style={{ color: '#fff', marginTop: 10 }}>
-            Verifying order...
-          </Text>
+    {/* DARK OVERLAY WITH CENTER FRAME */}
+    <View style={styles.overlay}>
+      <View style={styles.overlayTop} />
+
+      <View style={styles.overlayMiddle}>
+        <View style={styles.overlaySide} />
+
+        {/* CENTER SCANNING FRAME */}
+       <View style={styles.scanningFrame}>
+
+  {/* Animated Scan Line */}
+  <Animated.View
+    style={[
+      styles.scanLine,
+      {
+        transform: [{ translateY: scanLineAnim }],
+      },
+    ]}
+  />
+          {/* CORNERS */}
+          <View style={[styles.corner, styles.cornerTopLeft]} />
+          <View style={[styles.corner, styles.cornerTopRight]} />
+          <View style={[styles.corner, styles.cornerBottomLeft]} />
+          <View style={[styles.corner, styles.cornerBottomRight]} />
         </View>
-      )}
 
-      {/* HEADER */}
-      <View style={styles.topSection}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Scan Order QR</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-            <X size={24} color="white" />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.overlaySide} />
       </View>
 
-      {/* Bottom instructions */}
-      <View style={styles.bottomSection}>
-        <Text style={styles.instructionText}>
-          Position QR code within the frame
+      <View style={styles.overlayBottom} />
+    </View>
+
+    {/* Loading Overlay */}
+    {verifying && (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="large" color="#f97316" />
+        <Text style={{ color: '#fff', marginTop: 10 }}>
+          Verifying order...
         </Text>
-        <Text style={styles.subText}>
-          The order will be confirmed after successful scan
-        </Text>
+      </View>
+    )}
+
+    {/* HEADER */}
+    <View style={styles.topSection}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Scan Order QR</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
+          <X size={24} color="white" />
+        </TouchableOpacity>
       </View>
     </View>
-  );
+
+    {/* Bottom instructions */}
+    <View style={styles.bottomSection}>
+      <Text style={styles.instructionText}>
+        Position QR code within the frame
+      </Text>
+      <Text style={styles.subText}>
+        The order will be confirmed after successful scan
+      </Text>
+    </View>
+  </View>
+);
 }
 
 
-const FRAME_SIZE = 250;
-const CORNER_SIZE = 30;
+const FRAME_SIZE = 300;
+const CORNER_SIZE = 35;
 const CORNER_WIDTH = 4;
 
 const styles = StyleSheet.create({
@@ -269,6 +322,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
+
+  scanLine: {
+  position: 'absolute',
+  width: '100%',
+  height: 2,
+  backgroundColor: '#f97316',
+  shadowColor: '#f97316',
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0.9,
+  shadowRadius: 8,
+  elevation: 10,
+},
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -304,11 +369,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
-  scanningFrame: {
-    width: FRAME_SIZE,
-    height: FRAME_SIZE,
-    position: 'relative',
-  },
+ scanningFrame: {
+  width: FRAME_SIZE,
+  height: FRAME_SIZE,
+  position: 'relative',
+  borderWidth: 2,
+  borderColor: '#f97316',
+  backgroundColor: 'transparent',
+},
   overlayBottom: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

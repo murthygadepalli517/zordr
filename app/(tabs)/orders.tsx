@@ -48,7 +48,8 @@ const [ratings, setRatings] = useState<{
   // State for Custom Cancel Modal
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 const { authToken } = useStore(); // Get the stored token dynamically
-
+const [cancelReason, setCancelReason] = useState<string | null>(null);
+const [showReasonWarning, setShowReasonWarning] = useState(false);
   // FIXED: Added 'out_for_delivery' to active and 'delivered' to past
   const activeOrders = orders.filter((o) =>
     ['new', 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status)
@@ -70,6 +71,8 @@ const { authToken } = useStore(); // Get the stored token dynamically
   const initiateCancel = (orderId: string) => {
     hapticFeedback.warning();
     setOrderToCancel(orderId);
+    setCancelReason(null); // reset previous selection
+  setShowReasonWarning(false);
   };
 
   const confirmCancel = () => {
@@ -549,7 +552,14 @@ const renderRatingSection = (order: Order) => {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                    </Text>
+ </Text>
+                      {/* Order Number (like checkout screen) */}
+  {order.orderNumber && (
+    <Text className="text-[#FF5500] text-xs font-bold mt-1">
+      Order No: {order.orderNumber}
+    </Text>
+  )}
+                   
                   </View>
                 </View>
 
@@ -656,39 +666,67 @@ const renderRatingSection = (order: Order) => {
 
       {/* CUSTOM DARK THEMED MODAL FOR CANCELLATION */}
       <Modal transparent visible={!!orderToCancel} animationType="none" statusBarTranslucent>
-        <View className="flex-1 bg-black/80 justify-center items-center p-6">
-          {!!orderToCancel && (
-            <Animated.View
-              entering={ZoomIn.duration(200)}
-              exiting={ZoomOut.duration(200)}
-              className="w-full bg-[#1A1A1A] rounded-[32px] p-6 border border-white/10 items-center"
-            >
-              <View className="w-14 h-14 bg-red-500/10 rounded-full items-center justify-center mb-4">
-                <AlertTriangle size={28} color="#EF4444" />
-              </View>
-              <Text className="text-white font-black text-xl mb-2">Cancel Order?</Text>
-              <Text className="text-gray-400 text-center mb-8 px-4">
-                Are you sure you want to cancel this order? This action cannot be undone.
-              </Text>
+  <View className="flex-1 bg-black/80 justify-center items-center p-6">
+    {!!orderToCancel && (
+      <Animated.View
+        entering={ZoomIn.duration(200)}
+        exiting={ZoomOut.duration(200)}
+        className="w-full bg-[#1A1A1A] rounded-[32px] p-6 border border-white/10 items-center"
+      >
+        <Text className="text-white font-black text-xl mb-4">Why do you want to cancel?</Text>
 
-              <View className="flex-row gap-4 w-full">
-                <TouchableOpacity
-                  onPress={() => setOrderToCancel(null)}
-                  className="flex-1 py-4 rounded-2xl bg-white/5 items-center"
-                >
-                  <Text className="text-white font-bold">No, Keep it</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={confirmCancel}
-                  className="flex-1 py-4 rounded-2xl bg-red-500 items-center"
-                >
-                  <Text className="text-white font-bold">Yes, Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          )}
+        {/* Radio Options */}
+        <View className="w-full mb-6">
+          {['Unable to reach the slot', 'Hop to next slot'].map((reason) => (
+            <TouchableOpacity
+              key={reason}
+              onPress={() => setCancelReason(reason)}
+              className={`flex-row items-center p-3 rounded-xl mb-2 border ${
+                cancelReason === reason ? 'border-[#FF5500]' : 'border-white/10'
+              }`}
+            >
+              <View
+                className={`w-5 h-5 mr-3 rounded-full border ${
+                  cancelReason === reason ? 'border-[#FF5500] bg-[#FF5500]' : 'border-white/20'
+                }`}
+              />
+              <Text className="text-white text-sm">{reason}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      </Modal>
+
+        {showReasonWarning && (
+          <Text className="text-red-500 text-xs mb-3 text-center">
+            You must select a reason! Repeated violations may flag your account.
+          </Text>
+        )}
+
+        {/* Action Buttons */}
+        <View className="flex-row gap-4 w-full">
+          <TouchableOpacity
+            onPress={() => setOrderToCancel(null)}
+            className="flex-1 py-4 rounded-2xl bg-white/5 items-center"
+          >
+            <Text className="text-white font-bold">No, Keep it</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              if (!cancelReason) {
+                setShowReasonWarning(true);
+                hapticFeedback.warning();
+                return;
+              }
+              confirmCancel(); // existing function
+            }}
+            className="flex-1 py-4 rounded-2xl bg-red-500 items-center"
+          >
+            <Text className="text-white font-bold">Yes, Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    )}
+  </View>
+</Modal>
     </Layout>
   );
 }

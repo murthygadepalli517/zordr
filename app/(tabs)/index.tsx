@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -64,7 +65,11 @@ const FILTER_OPTIONS = [
   { id: 'under-200', label: 'Under ₹200' },
   { id: 'high-rating', label: 'Rated 4.5+' },
   { id: 'deals', label: 'Best Deals' },
+  {id: 'veg', label: 'Veg Only' },
+  {id: 'non-veg', label: 'Non-Veg Only' },
 ];
+
+
 
 const ONE_SET_WIDTH = (200 + 12) * 4;
 
@@ -87,7 +92,7 @@ export default function HomeScreen() {
     isAuthenticated,
     setActiveOutletId,
       activeOutletId,
-
+    isMenuLoading,
     refreshApp,
     categories,
   } = useStore();
@@ -121,6 +126,7 @@ const insets = useSafeAreaInsets();
   const dealsScrollRef = useRef<ScrollView>(null);
   const scrollX = useRef(0);
   const isInteracting = useRef(false);
+  const showShimmer = isMenuLoading && menuItems.length === 0;
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -204,6 +210,24 @@ const insets = useSafeAreaInsets();
     setActiveOrderIndex(roundIndex);
   };
 
+  function ShimmerCard() {
+  return (
+    <View className="mb-4 bg-[#1A1A1A] p-3 rounded-[24px] border border-white/5 flex-row gap-4">
+      <View className="w-28 h-28 rounded-2xl bg-[#2A2A2A]" />
+
+      <View className="flex-1 justify-between py-1">
+        <View>
+          <View className="h-4 bg-[#2A2A2A] rounded w-2/3 mb-2" />
+          <View className="h-3 bg-[#2A2A2A] rounded w-3/4 mb-2" />
+          <View className="h-3 bg-[#2A2A2A] rounded w-1/2" />
+        </View>
+
+        <View className="h-5 bg-[#2A2A2A] rounded w-1/4 mt-3" />
+      </View>
+    </View>
+  );
+}
+
   const toggleDropdown = () => {
     hapticFeedback.light();
     const willOpen = !isOutletDropdownOpen;
@@ -256,6 +280,9 @@ const insets = useSafeAreaInsets();
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
     let matchesBase = false;
 
+
+const showShimmer = isMenuLoading && menuItems.length === 0;
+
     if (searchQuery.length > 0) {
       matchesBase = matchesCategory && item.name.toLowerCase().includes(searchQuery.toLowerCase());
     } else {
@@ -266,6 +293,8 @@ const insets = useSafeAreaInsets();
     if (activeFilter === 'under-200') return item.price < 200;
     if (activeFilter === 'high-rating') return (item.rating || 0) >= 4.5;
     if (activeFilter === 'deals') return false;
+    if (activeFilter === 'veg') return item.isVeg === true;
+    if (activeFilter === 'non-veg')  return item.isVeg === false;
 
     return true;
   }), [dynamicItems, activeCategory, searchQuery, activeOutletId, activeFilter]);
@@ -624,7 +653,12 @@ const insets = useSafeAreaInsets();
                         </Text>
                       </View>
 
-                      {filteredItems.length > 0 ? (
+                      {showShimmer ?(<>
+
+                       {[...Array(5)].map((_, i) => (
+      <ShimmerCard key={i} />
+    ))}
+                      </>):filteredItems.length > 0 ? (
                         filteredItems.map((item, index) => {
                           const isFav = favorites.includes(String(item.id));
                           const isDifferentOutlet = item.outletId !== activeOutletId;
@@ -632,7 +666,7 @@ const insets = useSafeAreaInsets();
                           const inCart = !!cartItem;
                           const quantity = cartItem?.quantity || 0;
                           return (
-                            <AnimatedItem key={item.id} index={index}>
+                            <View key={item.id}>
                               <TouchableOpacity
                                 onPress={() => openItemDetails(item)}
                                 activeOpacity={0.8}
@@ -748,7 +782,7 @@ const insets = useSafeAreaInsets();
                                   </View>
                                 </View>
                               </TouchableOpacity>
-                            </AnimatedItem>
+                            </View>
                           );
                         })
                       ) : (
@@ -834,8 +868,8 @@ const insets = useSafeAreaInsets();
       {/* FLOATING CART BUTTON - Swiggy Style */}
   {cart.length > 0 && (
   <Animated.View
-    entering={FadeInDown.springify().damping(15)}
-    exiting={FadeOutDown.springify().damping(15)}
+    entering={FadeIn.duration(200)}
+  exiting={FadeOutDown.duration(150)}
     style={{
       position: 'absolute',
       left: 16,

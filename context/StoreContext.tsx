@@ -152,7 +152,8 @@ interface StoreContextType {
   clearCart: () => Promise<void>;
 
   orders: Order[];
-  placeOrder: (time: string, paymentMethod: string, specialInstructions?: string,  couponCode?: string
+  placeOrder: (time: string, paymentMethod: string, specialInstructions?: string,  couponCode?: string,  orderType?: 'Dine In' | 'Takeaway'
+
 ) => Promise<Order>;
   cancelOrder: (id: string) => void;
 
@@ -172,6 +173,7 @@ interface StoreContextType {
   deals: MenuItem[];
   menuItems: MenuItem[];
   categories: string[];
+    isMenuLoading: boolean; // ✅ ADD HERE
   searchGlobalItems: (query: string) => Promise<MenuItem[]>;
   fetchMenuItems: (outletId: string) => Promise<void>;
   fetchDeals: (outletId: string) => Promise<void>;
@@ -199,6 +201,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedCampus, setSelectedCampus] = useState('KITSW');
   const [activeOutletId, setActiveOutletId] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+
 
   // --- 1. INITIALIZATION ---
   useEffect(() => {
@@ -350,11 +353,21 @@ const favoriteItems = favoritesData;
     });
   }, [orders]);
 
-  const { data: outletMenuData } = useQuery({
-    queryKey: ['menu', activeOutletId],
-    queryFn: () => apiFetch(`menu?outletId=${activeOutletId}`, {}, authToken || ''),
-    enabled: !!activeOutletId,
-  });
+  // const { data: outletMenuData } = useQuery({
+  //   queryKey: ['menu', activeOutletId],
+  //   queryFn: () => apiFetch(`menu?outletId=${activeOutletId}`, {}, authToken || ''),
+  //   enabled: !!activeOutletId,
+  // });
+
+const { 
+  data: outletMenuData,
+  isLoading: isMenuLoading,
+  isFetching: isMenuFetching,
+} = useQuery({
+  queryKey: ['menu', activeOutletId],
+  queryFn: () => apiFetch(`menu?outletId=${activeOutletId}`, {}, authToken || ''),
+  enabled: !!activeOutletId,
+});
 
   const menuItems = (outletMenuData?.items || []).map((item: any) => ({
     ...item,
@@ -624,7 +637,9 @@ const updateUserMutation = useMutation({
     time: string,
     paymentMethod: string,
     specialInstructions?: string,
-      couponCode?: string
+      couponCode?: string,
+        orderType?: 'Dine In' | 'Takeaway'
+
 
   ): Promise<Order> => {
     if (!authToken) throw new Error('User not authenticated');
@@ -639,6 +654,7 @@ const updateUserMutation = useMutation({
   outletId: cart[0]?.outletId,
   paymentMethod: paymentMethod,
   specialInstructions: specialInstructions,
+orderType: orderType === 'Dine In' ? 'Dine In' : 'Takeaway',
 };
 
 // ✅ Only attach coupon if it exists
@@ -731,12 +747,13 @@ const result = await placeOrderMutation.mutateAsync(body);
     campuses,
     selectedCampus,
     setSelectedCampus,
-
+    isMenuLoading,
     activeOutletId,
     setActiveOutletId,
 
     deals,
     menuItems,
+    
     categories,
     searchGlobalItems,
     fetchMenuItems: async (outletId: string) => {

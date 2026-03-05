@@ -3,7 +3,7 @@ import { View, ScrollView, TouchableOpacity, Image, Alert, TextInput, Modal } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, Clock, Store, Wallet, ShieldCheck, AlertCircle, X } from 'lucide-react-native';
-
+import { useLocalSearchParams } from 'expo-router';
 import { Layout } from '../components/ui/layout';
 import { Text } from '../components/ui/text';
 import { useStore } from '../context/StoreContext';
@@ -16,17 +16,21 @@ import RazorpayCheckout from 'react-native-razorpay';
 
 export default function CheckoutScreen() {
   const router = useRouter();
+  
   const { cart, placeOrder, orders, getOutletSlots, outlets ,user} = useStore();
   const insets = useSafeAreaInsets();
+const params = useLocalSearchParams<{
+  orderType?: 'Dine In' | 'Takeaway';
+}>();
 
-
+const orderType = params.orderType;
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<
     { time: string; available: boolean; remaining: number; isHighTraffic: boolean,     limit: number; 
  }[]
   >([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Prepaid'>('COD'); // Default COD
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Prepaid'>('Prepaid'); // Default UPI
   const [instructions, setInstructions] = useState('');
   const [showAllSlots, setShowAllSlots] = useState(false);
 
@@ -84,19 +88,23 @@ export default function CheckoutScreen() {
   };
 
   // Load Last Payment Method
-  useEffect(() => {
-    const loadPaymentPref = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('lastPaymentMethod');
-        if (stored === 'Prepaid' || stored === 'COD') {
-          setPaymentMethod(stored);
-        }
-      } catch (e) {
-        console.error('Failed to load payment pref', e);
+ useEffect(() => {
+  const loadPaymentPref = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('lastPaymentMethod');
+
+      // Only override if stored is Prepaid
+      if (stored === 'Prepaid') {
+        setPaymentMethod('Prepaid');
       }
-    };
-    loadPaymentPref();
-  }, []);
+
+      // If stored is COD → ignore and keep Prepaid default
+    } catch (e) {
+      console.error('Failed to load payment pref', e);
+    }
+  };
+  loadPaymentPref();
+}, []);
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -227,7 +235,9 @@ const handleOrderSuccess = async () => {
       selectedTime,
       backendPaymentMethod,
       instructions,
-      appliedCoupon?.code
+      appliedCoupon?.code,
+        orderType
+
     );
 
     // 2️⃣ If COD → Done
@@ -260,7 +270,7 @@ const handleOrderSuccess = async () => {
       key: 'rzp_test_S7KeATm2fFOCTu', // ✅ ONLY KEY ID
       amount: paymentOrder.amount,
       order_id: paymentOrder.razorpayOrderId,
-      name: 'Your App Name',
+      name: 'Zordr',
       prefill: {
         email: user?.email,
         contact: user?.phone,
@@ -294,11 +304,11 @@ const handleOrderSuccess = async () => {
         });
       })
       .catch((error: any) => {
-        Alert.alert(
-          'Payment Failed',
-          error.description || 'Transaction was cancelled.'
-        );
-      });
+  router.replace({
+    pathname: '/payment-failed',
+    params: { orderId: newOrder.id }
+  });
+});
 
   } catch (error: any) {
     Alert.alert(
@@ -385,6 +395,20 @@ const handleOrderSuccess = async () => {
       const availablePercentage = (remaining / limit) * 100;
         const isFull = remaining === 0 || !slot.available;
         const isLowStock = remaining > 0 && remaining < 5;
+
+       // default green
+
+let borderColorClass = 'border-[#10B981]'; // emerald default
+
+if (isFull) {
+  borderColorClass = 'border-[#374151]'; // gray-700
+} else if (bookedPercentage >= 80) {
+borderColorClass = 'border-red-500/30';
+} else if (bookedPercentage >= 50) {
+  borderColorClass = 'border-[#F59E0B]'; // yellow-500
+} else {
+  borderColorClass = 'border-[#10B981]'; // emerald-500
+}
         const isHighTraffic = slot.isHighTraffic;
 
         return (
@@ -397,16 +421,12 @@ const handleOrderSuccess = async () => {
             }}
             activeOpacity={0.8}
             className={`w-[30%] h-16 rounded-xl items-center justify-center border relative overflow-hidden ${
-        isFull
-          ? 'bg-gray-800 border-gray-700 opacity-60'
-          : isSelected
-          ? 'bg-[#FF5500] border-[#FF5500]'  // FULL ORANGE FILL
-          : isHighTraffic
-          ? 'bg-[#1A1408] border-orange-500/50'  
-          : availablePercentage === 100
-          ? 'border-emerald-500 bg-[#1A1A1A]'
-          : 'border-white/10 bg-[#1A1A1A]'
-      }`}
+  isFull
+    ? 'bg-gray-800 opacity-60 border-gray-700'
+    : isSelected
+    ? 'bg-[#FF5500] border-[#FF5500]'
+    : `bg-[#1A1A1A] ${borderColorClass}`
+}`}
 
           >
             {/* Time */}
@@ -424,24 +444,21 @@ const handleOrderSuccess = async () => {
 
 
             {/* Sub Text */}
-            {!isFull &&  (
-            <Text
-          className={`text-[9px] mt-1 font-bold z-10 ${
-            isSelected
-              ? 'text-black/80'  // Visible on orange
-              : isLowStock
-              ? 'text-red-400'
-              : 'text-gray-500'
-          }`}
-        >
-                {isLowStock
-                  ? `Only ${remaining} left`
-                  : isHighTraffic
-        ? `Busy • ${remaining} left`
-                  : `${remaining}/${limit} available`}
-              </Text>
-            )}
-
+            {!isFull && (
+  <Text
+    className={`text-[9px] mt-1 font-bold z-10 ${
+      isSelected
+        ? 'text-black/80'
+        : isLowStock
+        ? 'text-red-400'
+        : 'text-gray-500'
+    }`}
+  >
+    {isLowStock
+      ? `Only ${remaining} left`
+      : `${remaining}/${limit} available`}
+  </Text>
+)}
             {/* FULL Label */}
             {isFull && (
               <Text className="text-[9px] mt-1 text-gray-500 font-bold">

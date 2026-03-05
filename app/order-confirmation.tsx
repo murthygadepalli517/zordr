@@ -318,7 +318,7 @@ export default function OrderConfirmationScreen() {
             </Text> */}
 <View className="w-full items-center mb-6">
   <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-4">
-    PICKUP SLOT
+    Items
   </Text>
 
   {activeOrder.items?.length ? (
@@ -331,19 +331,39 @@ export default function OrderConfirmationScreen() {
           <Text className="text-white font-bold text-base">
             {item.name}
           </Text>
-          <Text className="text-gray-400 text-xs">
-            Qty: {item.quantity}
-          </Text>
+
+          {/* <Text className="text-gray-400 text-xs">
+            Type: {activeOrder.orderType}
+          </Text> */}
+          
         </View>
 
         <Text className="text-orange-400 font-black text-lg">
-          {activeOrder.pickupSlot || 'N/A'}
+         Qty : {item.quantity || 'N/A'}
         </Text>
       </View>
     ))
   ) : (
     <Text className="text-white">N/A</Text>
   )}
+<Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
+              PICKED SLOT
+            </Text>
+
+   {activeOrder.picked_slot && (
+  <View className="w-[85%] bg-[#252525] mt-3 px-4 py-4 rounded-2xl flex-row justify-between items-center mb-2">
+    
+    <Text className="text-gray-400 text-sm font-semibold">
+      TIME
+    </Text>
+
+    <Text className="text-orange-400 font-black text-lg">
+      {activeOrder.picked_slot}
+    </Text>
+
+  </View>
+)}
+
 </View>
             
           </View>
@@ -372,6 +392,16 @@ export default function OrderConfirmationScreen() {
                 Counter 4 • <Text className="text-white">{activeOrder.outletName}</Text>
               </Text>
             </View>
+
+
+             <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
+            
+              <Text className="text-gray-300 font-bold text-xs">
+                ORDERTYPE: <Text className="text-orange-400 text-sm">{activeOrder.orderType}</Text>
+              </Text>
+            </View>
+
+            
 
             {/* Slot */}
             {activeOrder.pickupSlot && (
