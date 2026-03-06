@@ -67,6 +67,7 @@ export interface Order {
   pickupSlot?: string;
   instructions?: string;
   updatedAt: string; // ISO String
+   cancellationReason?: string; 
 }
 
 export interface Outlet {

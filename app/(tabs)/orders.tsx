@@ -59,15 +59,12 @@ const [showReasonWarning, setShowReasonWarning] = useState(false);
     ['delivered', 'completed', 'cancelled','expired'].includes(o.status)
   );
 
-  const CANCEL_REASONS = [
-  { display: "No Reason", apiValue: "NO_REASON" },
-  { display: "Unable to reach the slot", apiValue: "UNABLE_TO_REACH" },
-  // You can add more later
-  // { display: "Changed my mind", apiValue: "CHANGED_MIND" },
-] as const;
+ 
 
 const [selectedCancelReason, setSelectedCancelReason] = useState<string | null>(null); // apiValue
-
+const [cancelReasons, setCancelReasons] = useState<
+  { code: string; label: string }[]
+>([]);
 
   // TODO: Backend needs to implement frequently ordered items endpoint
   // For now, reorder tab shows same as past orders
@@ -119,6 +116,33 @@ const confirmCancel = () => {
 //   loadReviews();
 // }, [authToken, pastOrders]);
 
+useEffect(() => {
+  if (!authToken) return;
+
+  const fetchCancelReasons = async () => {
+    try {
+      const res = await fetch(
+        "https://zordr-backend.onrender.com/api/orders/cancellation-reasons",
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setCancelReasons(data.data);
+      } else {
+        console.warn("Failed to fetch cancellation reasons:", data);
+      }
+    } catch (err) {
+      console.error("Error fetching cancellation reasons:", err);
+    }
+  };
+
+  fetchCancelReasons();
+}, [authToken]);
 
 useEffect(() => {
   if (!authToken) return;
@@ -598,6 +622,32 @@ const renderRatingSection = (order: Order) => {
                   </View>
                 )}
 
+
+
+               {order.status === 'cancelled' && (
+  <View className="mt-2 flex-col space-y-2">
+    {/* Cancellation reason */}
+    {(order as any).cancellationReason && (
+      <View className="flex-row items-start bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
+        <XCircle size={16} color="#ef4444" style={{ marginRight: 6 }} />
+        <Text className="text-red-400 text-xs flex-1">
+          Cancellation_Reason: {(order as any).cancellationReason}
+        </Text>
+      </View>
+    )}
+
+    {/* Special prepaid UPI message */}
+    {(order as any).paymentStatus === 'PAID' && (order as any).paymentMethod === 'UPI' && (
+      <View className="flex-row items-start bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl">
+        <AlertTriangle size={16} color="#facc15" style={{ marginRight: 6 }} />
+        <Text className="text-yellow-400 text-xs flex-1">
+          You paid via UPI. Please collect your money at the outlet.
+        </Text>
+      </View>
+    )}
+  </View>
+)}
+
                 <View className="flex-row justify-between items-center mb-4">
                   <View className="flex-row items-center gap-2">
                     {getStatusIcon(order.status)}
@@ -696,33 +746,33 @@ const renderRatingSection = (order: Order) => {
           Please select a reason (helps us improve)
         </Text>
 
-       <View className="w-full mb-6 space-y-3">
-  {CANCEL_REASONS.map((reason) => (
+    <View className="w-full mb-6 space-y-3">
+  {cancelReasons.map((reason) => (
     <TouchableOpacity
-      key={reason.apiValue}
+      key={reason.code}
       onPress={() => {
-        setSelectedCancelReason(reason.apiValue);
+        setSelectedCancelReason(reason.code);
         setShowReasonWarning(false);
         hapticFeedback.light();
       }}
       className={`p-4 rounded-2xl border ${
-        selectedCancelReason === reason.apiValue
+        selectedCancelReason === reason.code
           ? 'border-[#FF5500] bg-[#FF5500]/10'
           : 'border-white/10 bg-black/30'
       }`}
     >
       <Text
         className={`text-base font-medium ${
-          selectedCancelReason === reason.apiValue ? 'text-[#FF5500]' : 'text-white'
+          selectedCancelReason === reason.code ? 'text-[#FF5500]' : 'text-white'
         }`}
       >
-        {reason.display}
+        {reason.label}
       </Text>
     </TouchableOpacity>
   ))}
 
   {/* ⚠️ Warning when NO_REASON selected */}
-  {selectedCancelReason === "NO_REASON" && (
+  {selectedCancelReason === 'NO_REASON' && (
     <View className="flex-row items-start mt-2 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl">
       <AlertTriangle size={16} color="#facc15" style={{ marginRight: 6 }} />
       <Text className="text-yellow-400 text-xs flex-1">
@@ -731,7 +781,6 @@ const renderRatingSection = (order: Order) => {
     </View>
   )}
 </View>
-
         {showReasonWarning && (
           <Text className="text-red-400 text-sm mb-4 text-center font-medium">
             Please select a reason to continue
