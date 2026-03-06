@@ -155,7 +155,7 @@ interface StoreContextType {
   placeOrder: (time: string, paymentMethod: string, specialInstructions?: string,  couponCode?: string,  orderType?: 'Dine In' | 'Takeaway'
 
 ) => Promise<Order>;
-  cancelOrder: (id: string) => void;
+  cancelOrder: (id: string,reason?: string) => void;
 
   favorites: string[];
   toggleFavorite: (id: string) => void;
@@ -516,10 +516,22 @@ const {
     },
   });
 
-  const cancelOrderMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`orders/${id}/cancel`, { method: 'PUT' }, authToken || ''),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
-  });
+ const cancelOrderMutation = useMutation({
+  mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+    apiFetch(
+      `orders/${id}/cancel`,
+      {
+        method: 'PUT',
+        body: {
+          reason: reason || "NO_REASON",
+        },
+      },
+      authToken || ''
+    ),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['orders'] });
+  },
+});
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -737,7 +749,7 @@ const result = await placeOrderMutation.mutateAsync(body);
 
     orders,
     placeOrder,
-    cancelOrder: (id) => cancelOrderMutation.mutate(id),
+    cancelOrder: (id: string, reason?: string) => cancelOrderMutation.mutate({ id, reason }),
 
     favorites,
     toggleFavorite: (id) => toggleFavoriteMutation.mutate(id),

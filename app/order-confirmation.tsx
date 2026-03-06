@@ -307,8 +307,9 @@ export default function OrderConfirmationScreen() {
             <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
               ORDER ID
             </Text>
-            <Text className="text-5xl font-black text-white tracking-tighter">
-              #{activeOrder.orderNumber.slice(-5).toUpperCase()}
+            <Text className="text-2xl font-black text-white tracking-tighter">
+              {/* #{activeOrder.orderNumber.slice(-5).toUpperCase()} */}
+              #{activeOrder.orderNumber}
             </Text>
             {/* <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
               ORDER ID
