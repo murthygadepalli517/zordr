@@ -296,6 +296,8 @@ Alert.alert(
   const handleLogout = () => {
     hapticFeedback.warning();
     logout();
+      router.dismissAll(); // clears navigation stack
+
     router.replace('/(auth)/welcome');
   };
 

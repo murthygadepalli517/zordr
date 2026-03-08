@@ -413,7 +413,7 @@ export default function OrderConfirmationScreen() {
             )}
 
             {/* Payment */}
-            <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
+            {/* <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
               {activeOrder.paymentMethod === 'COD' ? (
                 <Wallet size={14} color="#F59E0B" />
               ) : (
@@ -422,7 +422,35 @@ export default function OrderConfirmationScreen() {
               <Text className="text-gray-300 font-bold text-xs">
                 {activeOrder.paymentMethod === 'COD' ? 'Pay at Counter' : 'Prepaid'}
               </Text>
-            </View>
+            </View> */}
+
+
+            <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
+
+{activeOrder.paymentMethod === "UPI" && activeOrder.paymentStatus === "PAID" ? (
+  <>
+    <ShieldCheck size={14} color="#10B981" />
+    <Text className="text-gray-300 font-bold text-xs">
+      Prepaid
+    </Text>
+  </>
+) : activeOrder.paymentMethod === "UPI" && activeOrder.paymentStatus !== "PAID" ? (
+  <>
+    <Wallet size={14} color="#F59E0B" />
+    <Text className="text-gray-300 font-bold text-xs">
+      Payment Not Done • Pay at Counter
+    </Text>
+  </>
+) : (
+  <>
+    <Wallet size={14} color="#F59E0B" />
+    <Text className="text-gray-300 font-bold text-xs">
+      Pay at Counter
+    </Text>
+  </>
+)}
+
+</View>
           </View>
 
           <View className="w-full bg-red-500/5 border-t border-red-500/10 p-4">

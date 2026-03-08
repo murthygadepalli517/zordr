@@ -1,38 +1,73 @@
-import { View, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity, BackHandler } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Text } from "../components/ui/text";
 import RazorpayCheckout from "react-native-razorpay";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useStore } from "../context/StoreContext";
+import { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 
 export default function PaymentFailed() {
 
 const router = useRouter();
 const { orderId } = useLocalSearchParams();
+const { cancelOrder } = useStore();
+const appState = useRef(AppState.currentState);
+
+const isLeavingRef = useRef(false);
 
 
 
+useEffect(() => {
+  const subscription = AppState.addEventListener("change", (nextState) => {
+
+    if (
+      appState.current === "active" &&
+      nextState.match(/inactive|background/)
+    ) {
+      if (!isLeavingRef.current && orderId) {
+        cancelOrder(orderId as string, "UNABLE_TO_REACH");
+      }
+    }
+
+    appState.current = nextState;
+  });
+
+  return () => {
+    subscription.remove();
+  };
+}, [orderId]);
+
+useEffect(() => {
+
+  const backAction = () => {
+
+    if (!isLeavingRef.current && orderId) {
+      cancelOrder(orderId as string, "UNABLE_TO_REACH");
+    }
+
+    router.replace("/(tabs)/");
+    return true;
+  };
+
+  const backHandler = BackHandler.addEventListener(
+    "hardwareBackPress",
+    backAction
+  );
+
+  return () => backHandler.remove();
+
+}, [orderId]);
 
 const cancelOrderHandler = async () => {
-  try {
-    const { apiFetch } = require("../utils/api");
 
-    const token = (await AsyncStorage.getItem("authToken")) || "";
+  if (!orderId) return;
 
-    await apiFetch(
-      `orders/${orderId}/cancel`,
-      {
-        method: "POST",
-        body: {
-          reason: "Payment not completed",
-        },
-      },
-      token
-    );
+  isLeavingRef.current = true;
 
-    router.replace("/"); // redirect to home after cancel
-  } catch (error) {
-    console.error("Cancel order failed:", error);
-  }
+  cancelOrder(orderId as string, "UNABLE_TO_REACH");
+
+  router.replace("/(tabs)/");
 };
 
 const retryPayment = async () => {
@@ -59,6 +94,8 @@ const retryPayment = async () => {
 
   RazorpayCheckout.open(options)
     .then(async (data:any) => {
+
+      isLeavingRef.current = true;
 
       await apiFetch(
         "payments/verify",
@@ -105,14 +142,14 @@ Retry Payment
 </TouchableOpacity>
 
 <TouchableOpacity
-onPress={() => router.replace('/(tabs)/')}
+onPress={cancelOrderHandler}
 className="border border-red-500/30 px-8 py-4 rounded-xl"
 >
 <Text className="text-red-500 font-bold">
 Cancel
 </Text>
 </TouchableOpacity>
-</View>
 
+</View>
 );
 }
