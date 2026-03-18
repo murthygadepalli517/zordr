@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -55,6 +56,8 @@ import { AnimatedItem } from '../../components/AnimatedItem';
 import { ReadyToPickRibbon } from '../../components/ReadyToPickRibbon';
 import { usePrepTime } from '../../components/PrepTimeProgressBar';
 import { ActiveOrderCard } from '../../components/ActiveOrderCard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const { width } = Dimensions.get('window');
 
@@ -62,7 +65,11 @@ const FILTER_OPTIONS = [
   { id: 'under-200', label: 'Under ₹200' },
   { id: 'high-rating', label: 'Rated 4.5+' },
   { id: 'deals', label: 'Best Deals' },
+  {id: 'veg', label: 'Veg Only' },
+  {id: 'non-veg', label: 'Non-Veg Only' },
 ];
+
+
 
 const ONE_SET_WIDTH = (200 + 12) * 4;
 
@@ -84,13 +91,16 @@ export default function HomeScreen() {
     fetchDeals,
     isAuthenticated,
     setActiveOutletId,
+      activeOutletId,
+    isMenuLoading,
     refreshApp,
     categories,
   } = useStore();
+const { user } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedOutlet, setSelectedOutlet] = useState('');
+  
 
   const [isOutletDropdownOpen, setIsOutletDropdownOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -99,6 +109,7 @@ export default function HomeScreen() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+const insets = useSafeAreaInsets();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -115,6 +126,7 @@ export default function HomeScreen() {
   const dealsScrollRef = useRef<ScrollView>(null);
   const scrollX = useRef(0);
   const isInteracting = useRef(false);
+  const showShimmer = isMenuLoading && menuItems.length === 0;
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -135,18 +147,24 @@ export default function HomeScreen() {
     }, [])
   );
 
-  useEffect(() => {
-    if (campusOutlets.length > 0 && !selectedOutlet) {
-      setSelectedOutlet(campusOutlets[0].id);
-    }
-  }, [selectedCampus, campusOutlets]);
+ useEffect(() => {
+  if (campusOutlets.length === 0) return;
 
+  const isActiveOutletValid = campusOutlets.some(
+    (outlet) => outlet.id === activeOutletId
+  );
+
+  // Only set default if current outlet is invalid
+  if (!isActiveOutletValid) {
+    setActiveOutletId(campusOutlets[0].id);
+  }
+}, [selectedCampus, campusOutlets]);
   useEffect(() => {
-    if (selectedOutlet && isAuthenticated) {
-      console.log('📥 Setting active outlet:', selectedOutlet);
-      setActiveOutletId(selectedOutlet);
+    if (activeOutletId && isAuthenticated) {
+      console.log('📥 Setting active outlet:', activeOutletId);
+      setActiveOutletId(activeOutletId);
     }
-  }, [selectedOutlet, isAuthenticated]);
+  }, [activeOutletId, isAuthenticated]);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -191,6 +209,24 @@ export default function HomeScreen() {
     const roundIndex = Math.round(index);
     setActiveOrderIndex(roundIndex);
   };
+
+  function ShimmerCard() {
+  return (
+    <View className="mb-4 bg-[#1A1A1A] p-3 rounded-[24px] border border-white/5 flex-row gap-4">
+      <View className="w-28 h-28 rounded-2xl bg-[#2A2A2A]" />
+
+      <View className="flex-1 justify-between py-1">
+        <View>
+          <View className="h-4 bg-[#2A2A2A] rounded w-2/3 mb-2" />
+          <View className="h-3 bg-[#2A2A2A] rounded w-3/4 mb-2" />
+          <View className="h-3 bg-[#2A2A2A] rounded w-1/2" />
+        </View>
+
+        <View className="h-5 bg-[#2A2A2A] rounded w-1/4 mt-3" />
+      </View>
+    </View>
+  );
+}
 
   const toggleDropdown = () => {
     hapticFeedback.light();
@@ -244,19 +280,24 @@ export default function HomeScreen() {
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
     let matchesBase = false;
 
+
+const showShimmer = isMenuLoading && menuItems.length === 0;
+
     if (searchQuery.length > 0) {
       matchesBase = matchesCategory && item.name.toLowerCase().includes(searchQuery.toLowerCase());
     } else {
-      matchesBase = matchesCategory && (item.outletId === selectedOutlet || !selectedOutlet);
+      matchesBase = matchesCategory && (item.outletId === activeOutletId || !activeOutletId);
     }
 
     if (!matchesBase) return false;
     if (activeFilter === 'under-200') return item.price < 200;
     if (activeFilter === 'high-rating') return (item.rating || 0) >= 4.5;
     if (activeFilter === 'deals') return false;
+    if (activeFilter === 'veg') return item.isVeg === true;
+    if (activeFilter === 'non-veg')  return item.isVeg === false;
 
     return true;
-  }), [dynamicItems, activeCategory, searchQuery, selectedOutlet, activeFilter]);
+  }), [dynamicItems, activeCategory, searchQuery, activeOutletId, activeFilter]);
 
   const openItemDetails = (item: any) => {
     hapticFeedback.selection();
@@ -289,12 +330,17 @@ export default function HomeScreen() {
                 }
               >
                 {/* HEADER */}
-                <Animated.View
-                  style={[
-                    headerAnimatedStyle,
-                    { paddingHorizontal: 24, paddingBottom: 16, zIndex: 50 },
-                  ]}
-                >
+               <Animated.View
+  style={[
+    headerAnimatedStyle,
+    {
+      paddingHorizontal: 24,
+      paddingBottom: 16,
+      zIndex: 1000,
+      elevation: 1000,
+    },
+  ]}
+>
                   <View className="flex-row justify-between items-center">
                     <View className="relative z-50">
                       <View className="flex-row items-center gap-2 mb-1">
@@ -321,7 +367,7 @@ export default function HomeScreen() {
                           className="text-primary max-w-[200px] text-base font-semibold"
                           numberOfLines={1}
                         >
-                          {outlets.find((o) => o.id === selectedOutlet)?.name || 'Select Outlet'}
+                          {outlets.find((o) => o.id === activeOutletId)?.name || 'Select Outlet'}
                         </Text>
                         <Animated.View style={chevronStyle}>
                           <ChevronDown size={16} color="#f97316" />
@@ -342,7 +388,7 @@ export default function HomeScreen() {
                                 e.stopPropagation();
                                 Keyboard.dismiss();
                                 if (outlet.isOpen) {
-                                  setSelectedOutlet(outlet.id);
+                                  setActiveOutletId(outlet.id);
                                   toggleDropdown();
                                   setSearchQuery('');
                                 } else {
@@ -355,19 +401,19 @@ export default function HomeScreen() {
                                   );
                                 }
                               }}
-                              className={`flex-row justify-between items-center p-3 rounded-xl mb-1 ${selectedOutlet === outlet.id ? 'bg-white/10' : 'bg-transparent'} ${!outlet.isOpen ? 'opacity-50' : ''}`}
+                              className={`flex-row justify-between items-center p-3 rounded-xl mb-1 ${activeOutletId === outlet.id ? 'bg-white/10' : 'bg-transparent'} ${!outlet.isOpen ? 'opacity-50' : ''}`}
                             >
                               <View className="flex-row items-center gap-3">
                                 <View
                                   className={`w-2 h-2 rounded-full ${outlet.isOpen ? 'bg-green-500' : 'bg-red-500'}`}
                                 />
                                 <Text
-                                  className={`font-medium text-xs ${selectedOutlet === outlet.id ? 'text-white font-bold' : 'text-gray-300'}`}
+                                  className={`font-medium text-xs ${activeOutletId === outlet.id ? 'text-white font-bold' : 'text-gray-300'}`}
                                 >
                                   {outlet.name}
                                 </Text>
                               </View>
-                              {selectedOutlet === outlet.id && <Check size={14} color="#f97316" />}
+                              {activeOutletId === outlet.id && <Check size={14} color="#f97316" />}
                             </TouchableOpacity>
                           ))}
                         </Animated.View>
@@ -385,8 +431,10 @@ export default function HomeScreen() {
                         onPress={() => router.push('/profile')}
                         className="w-10 h-10 rounded-full border-2 border-primary overflow-hidden"
                       >
-                        <Image
-                          source={{ uri: 'https://github.com/shadcn.png' }}
+                       <Image
+                          source={{
+                            uri: user?.profileImage || 'https://github.com/shadcn.png',
+                          }}
                           className="w-full h-full"
                           resizeMode="cover"
                         />
@@ -491,7 +539,7 @@ export default function HomeScreen() {
 
                   {/* ACTIVE ORDERS (Dynamic Island Style) */}
                   {activeOrders.length > 0 && (
-                    <View className="mt-2 w-full px-0 pb-0 z-50 bg-transparent">
+                    <View className="mt-2 w-full px-0 pb-0 bg-transparent">
                       <ScrollView
                         horizontal
                         pagingEnabled
@@ -600,20 +648,25 @@ export default function HomeScreen() {
                           {activeCategory === 'All'
                             ? searchQuery
                               ? `Results`
-                              : `At ${outlets.find((o) => o.id === selectedOutlet)?.name || 'Outlet'}`
+                              : `At ${outlets.find((o) => o.id === activeOutletId)?.name || 'Outlet'}`
                             : `${activeCategory} Menu`}
                         </Text>
                       </View>
 
-                      {filteredItems.length > 0 ? (
+                      {showShimmer ?(<>
+
+                       {[...Array(5)].map((_, i) => (
+      <ShimmerCard key={i} />
+    ))}
+                      </>):filteredItems.length > 0 ? (
                         filteredItems.map((item, index) => {
                           const isFav = favorites.includes(String(item.id));
-                          const isDifferentOutlet = item.outletId !== selectedOutlet;
+                          const isDifferentOutlet = item.outletId !== activeOutletId;
                           const cartItem = cart.find((c) => c.id === item.id);
                           const inCart = !!cartItem;
                           const quantity = cartItem?.quantity || 0;
                           return (
-                            <AnimatedItem key={item.id} index={index}>
+                            <View key={item.id}>
                               <TouchableOpacity
                                 onPress={() => openItemDetails(item)}
                                 activeOpacity={0.8}
@@ -679,50 +732,57 @@ export default function HomeScreen() {
                                       </Text>
                                     </View>
 
-                                    {!inCart ? (
-                                      <TouchableOpacity
-                                        onPress={async (e) => {
-                                          e.stopPropagation();
-                                          hapticFeedback.selection();
-                                          await addToCart(item, 1);
-                                        }}
-                                        className="bg-primary px-4 py-2 rounded-full"
-                                      >
-                                        <Text className="text-white text-xs font-bold">ADD</Text>
-                                      </TouchableOpacity>
-                                    ) : (
-                                      <View className="flex-row items-center bg-primary rounded-lg overflow-hidden">
-                                        <TouchableOpacity
-                                          onPress={(e) => {
-                                            e.stopPropagation();
-                                            hapticFeedback.light();
-                                            updateQuantity(item.id, -1);
-                                          }}
-                                          className="w-7 h-7 items-center justify-center"
-                                        >
-                                          <Minus size={14} color="white" />
-                                        </TouchableOpacity>
-                                        <View className="px-3 h-7 bg-black items-center justify-center">
-                                          <Text className="font-bold text-sm text-white">
-                                            {quantity}
-                                          </Text>
-                                        </View>
-                                        <TouchableOpacity
-                                          onPress={(e) => {
-                                            e.stopPropagation();
-                                            hapticFeedback.light();
-                                            updateQuantity(item.id, 1);
-                                          }}
-                                          className="w-7 h-7 items-center justify-center"
-                                        >
-                                          <Plus size={14} color="white" />
-                                        </TouchableOpacity>
-                                      </View>
-                                    )}
+              {!inCart ? (
+  <TouchableOpacity
+    onPress={async (e) => {
+      e.stopPropagation();
+      hapticFeedback.selection();
+      await addToCart(item, 1);
+    }}
+    className="bg-primary px-4 py-2 rounded-full"
+  >
+    <Text className="text-white text-xs font-bold">ADD</Text>
+  </TouchableOpacity>
+) : (
+   <View
+                            className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
+                            style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
+                          >
+    
+    <TouchableOpacity
+      onPress={(e) => {
+        e.stopPropagation();
+        hapticFeedback.light();
+        updateQuantity(item.id, -1);
+      }}
+    >
+      {quantity === 1 ? (
+        <Minus size={16} color="#ef4444" />
+      ) : (
+        <Minus size={16} color="white" />
+      )}
+    </TouchableOpacity>
+
+    <Text className="font-bold text-sm w-4 text-center text-white">
+      {quantity}
+    </Text>
+
+    <TouchableOpacity
+      onPress={(e) => {
+        e.stopPropagation();
+        hapticFeedback.light();
+        updateQuantity(item.id, 1);
+      }}
+    >
+      <Plus size={16} color="white" />
+    </TouchableOpacity>
+  </View>
+)}
+                                    
                                   </View>
                                 </View>
                               </TouchableOpacity>
-                            </AnimatedItem>
+                            </View>
                           );
                         })
                       ) : (
@@ -734,6 +794,57 @@ export default function HomeScreen() {
                             Try selecting another category or outlet.
                           </Text>
                         </View>
+
+
+
+                        //      <Animated.View
+                        //   entering={FadeInDown.duration(400)}
+                        //   className="py-16 px-6"
+                        // >
+                        //   <View className="bg-[#111111] border border-white/5 rounded-3xl p-8 items-center shadow-2xl shadow-black">
+
+                        //     {/* Illustration */}
+                        //     <Image
+                        //       source={{
+                        //         uri: 'https://cdn-icons-png.flaticon.com/512/1046/1046857.png',
+                        //       }}
+                        //       style={{
+                        //         width: 140,
+                        //         height: 140,
+                        //         marginBottom: 24,
+                        //         opacity: 0.9,
+                        //       }}
+                        //       resizeMode="contain"
+                        //     />
+
+                        //     {/* Title */}
+                        //     <Text className="text-white text-lg font-bold mb-2">
+                        //       No dishes available
+                        //     </Text>
+
+                        //     {/* Subtitle */}
+                        //     <Text className="text-gray-400 text-xs text-center leading-5 mb-6">
+                        //       Looks like this outlet doesn’t have items in this category right now.
+                        //     </Text>
+
+                        //     {/* Action Button */}
+                        //     <TouchableOpacity
+                        //       onPress={() => {
+                        //         setActiveCategory('All');
+                        //         setActiveFilter(null);
+                        //         setSearchQuery('');
+                        //       }}
+                        //       activeOpacity={0.8}
+                        //       className="bg-primary px-6 py-3 rounded-full"
+                        //     >
+                        //       <Text className="text-white font-bold text-xs">
+                        //         Browse All Items
+                        //       </Text>
+                        //     </TouchableOpacity>
+
+                        //   </View>
+                        // </Animated.View>
+
                       )}
                     </View>
                   </View>
@@ -755,50 +866,68 @@ export default function HomeScreen() {
 
 
       {/* FLOATING CART BUTTON - Swiggy Style */}
-      {cart.length > 0 && (
-        <Animated.View
-          entering={FadeInDown.springify().damping(15)}
-          exiting={FadeOutDown.springify().damping(15)}
-          className="absolute left-4 right-4 bg-primary rounded-2xl shadow-2xl"
+  {cart.length > 0 && (
+  <Animated.View
+    entering={FadeIn.duration(200)}
+  exiting={FadeOutDown.duration(150)}
+    style={{
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      bottom: insets.bottom,
+      backgroundColor: '#ea580c', // match your primary
+      borderRadius: 24,
+      shadowColor: '#ea580c',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 10,
+      zIndex: 9999,
+      overflow: 'hidden', // allow children to render fully
+    }}
+  >
+    <TouchableOpacity
+      onPress={() => {
+        hapticFeedback.selection();
+        router.push('/(tabs)/cart');
+      }}
+      activeOpacity={0.9}
+      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}
+    >
+      {/* Left: Shopping bag icon + quantity + label */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View
           style={{
-            bottom: Platform.OS === 'ios' ? 95 : 75,
-            shadowColor: '#f97316',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 10,
-            zIndex: 9999,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.selection();
-              router.push('/(tabs)/cart');
-            }}
-            activeOpacity={0.9}
-            className="flex-row items-center justify-between px-5 py-4"
-          >
-            <View className="flex-row items-center gap-3">
-              <View className="bg-white/20 rounded-full w-10 h-10 items-center justify-center">
-                <ShoppingBag size={20} color="white" />
-              </View>
-              <View>
-                <Text className="text-white font-bold text-sm">
-                  {cart.reduce((acc, item) => acc + item.quantity, 0)}{' '}
-                  {cart.reduce((acc, item) => acc + item.quantity, 0) === 1 ? 'item' : 'items'}
-                </Text>
-                <Text className="text-white/70 text-xs">Tap to view cart</Text>
-              </View>
-            </View>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-white font-black text-lg">
-                ₹{cart.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(0)}
-              </Text>
-              <ChevronRight size={20} color="white" />
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+          <ShoppingBag size={20} color="#fff" />
+        </View>
+        <View>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+            {cart.reduce((acc, item) => acc + item.quantity, 0)}{' '}
+            {cart.reduce((acc, item) => acc + item.quantity, 0) === 1 ? 'item' : 'items'}
+          </Text>
+          <Text style={{ color: '#fff', fontSize: 12 }}>Tap to view cart</Text>
+        </View>
+      </View>
+
+      {/* Right: Total price + arrow */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16 }}>
+          ₹{cart.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(0)}
+        </Text>
+        <ChevronRight size={20} color="#fff" />
+      </View>
+    </TouchableOpacity>
+  </Animated.View>
+)}
+
     </View>
   );
 }

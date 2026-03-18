@@ -7,6 +7,8 @@ import { Text } from '../../components/ui/text';
 import { Button } from '../../components/ui/button';
 import { useStore } from '../../context/StoreContext';
 import { hapticFeedback } from '../../utils/haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const DIETARY_OPTIONS = [
   { id: 'veg', label: 'Vegetarian', icon: Leaf, color: '#22C55E' },
@@ -19,6 +21,8 @@ const ALLERGIES = ['Nuts', 'Dairy', 'Gluten', 'Soy', 'Eggs', 'Shellfish'];
 export default function DietaryPreferencesScreen() {
   const router = useRouter();
   const { user, updateUser } = useStore();
+  const insets = useSafeAreaInsets();
+
 
   const [dietary, setDietary] = useState(user?.dietaryPreference || 'veg');
   const [allergies, setAllergies] = useState<string[]>(user?.allergies || []);
@@ -117,7 +121,9 @@ export default function DietaryPreferencesScreen() {
       </ScrollView>
 
       {/* Save Button */}
-      <View className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10">
+      <View  style={{ paddingBottom: 20 + insets.bottom }}
+  className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10"
+>
         <Button
           label="Save Preferences"
           onPress={handleSave}

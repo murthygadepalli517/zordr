@@ -24,8 +24,12 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
+  dateOfBirth:string;
+  gender:string;
   zCoins: number;
   campus?: string;
+    profileImage?: string; // ✅ ADD THIS
+
   dietaryPreference?: string;
   allergies?: string[];
   notificationPreferences?: {
@@ -49,18 +53,21 @@ export interface Order {
   | 'cancelled'
   | 'out_for_delivery'
   | 'delivered'
-  | 'picked_up';
+  | 'picked_up'
+  | 'expired';
   createdAt: string;
   isDeal?: boolean;
   discount?: string;
   originalPrice?: number;
   outletId: string;
   outletName: string;
+  orderNumber: string;
   pickupTime?: string;
   paymentMethod?: string;
   pickupSlot?: string;
   instructions?: string;
   updatedAt: string; // ISO String
+   cancellationReason?: string; 
 }
 
 export interface Outlet {
@@ -146,11 +153,15 @@ interface StoreContextType {
   clearCart: () => Promise<void>;
 
   orders: Order[];
-  placeOrder: (time: string, paymentMethod: string, specialInstructions?: string) => Promise<Order>;
-  cancelOrder: (id: string) => void;
+  placeOrder: (time: string, paymentMethod: string, specialInstructions?: string,  couponCode?: string,  orderType?: 'Dine In' | 'Takeaway'
+
+) => Promise<Order>;
+  cancelOrder: (id: string,reason?: string) => void;
 
   favorites: string[];
   toggleFavorite: (id: string) => void;
+  favoriteItems: MenuItem[];
+
 
   outlets: Outlet[];
   campuses: Campus[];
@@ -163,6 +174,7 @@ interface StoreContextType {
   deals: MenuItem[];
   menuItems: MenuItem[];
   categories: string[];
+    isMenuLoading: boolean; // ✅ ADD HERE
   searchGlobalItems: (query: string) => Promise<MenuItem[]>;
   fetchMenuItems: (outletId: string) => Promise<void>;
   fetchDeals: (outletId: string) => Promise<void>;
@@ -179,6 +191,7 @@ interface StoreContextType {
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+const isLoggingOutRef = React.useRef(false);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
@@ -189,6 +202,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedCampus, setSelectedCampus] = useState('KITSW');
   const [activeOutletId, setActiveOutletId] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+
 
   // --- 1. INITIALIZATION ---
   useEffect(() => {
@@ -214,9 +228,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // 🔒 Listen for 401 Unauthorized events from API
     const handleUnauthorized = () => {
-      console.log('🔒 Session expired. Logging out.');
-      logout();
-    };
+  if (isLoggingOutRef.current) return; // 🚀 prevent double logout
+
+  console.log('🔒 Session expired. Logging out.');
+  logout();
+};
 
     // Lazy import or robust import
     import('../utils/events').then(({ globalEvents }) => {
@@ -251,12 +267,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const cart = cartData?.items || [];
 
-  const { data: favoritesData = [] } = useQuery({
-    queryKey: ['favorites'],
-    queryFn: () => apiFetch('favorites', {}, authToken || ''),
-    enabled: !!authToken,
-  });
-  const favorites = favoritesData.map((item: any) => item.id);
+const { data: favoritesData = [] } = useQuery<MenuItem[]>({
+  queryKey: ['favorites'],
+  queryFn: () => apiFetch('favorites', {}, authToken || ''),
+  enabled: !!authToken,
+});
+
+const favorites = favoritesData.map((item) => item.id);
+const favoriteItems = favoritesData;
+
 
   const { data: orders = [] } = useQuery({
     queryKey: ['orders'],
@@ -335,11 +354,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [orders]);
 
-  const { data: outletMenuData } = useQuery({
-    queryKey: ['menu', activeOutletId],
-    queryFn: () => apiFetch(`menu?outletId=${activeOutletId}`, {}, authToken || ''),
-    enabled: !!activeOutletId,
-  });
+  // const { data: outletMenuData } = useQuery({
+  //   queryKey: ['menu', activeOutletId],
+  //   queryFn: () => apiFetch(`menu?outletId=${activeOutletId}`, {}, authToken || ''),
+  //   enabled: !!activeOutletId,
+  // });
+
+const { 
+  data: outletMenuData,
+  isLoading: isMenuLoading,
+  isFetching: isMenuFetching,
+} = useQuery({
+  queryKey: ['menu', activeOutletId],
+  queryFn: () => apiFetch(`menu?outletId=${activeOutletId}`, {}, authToken || ''),
+  enabled: !!activeOutletId,
+});
 
   const menuItems = (outletMenuData?.items || []).map((item: any) => ({
     ...item,
@@ -387,6 +416,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const logout = async () => {
+
+      isLoggingOutRef.current = true;
+
     setUser(null);
     setAuthToken(null);
     setActiveOutletId(null);
@@ -397,6 +429,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (error) {
       console.error(error);
     }
+
+      setTimeout(() => {
+    isLoggingOutRef.current = false;
+  }, 1000);
   };
 
   // --- CART OPTIMISTIC UPDATES ---
@@ -481,10 +517,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     },
   });
 
-  const cancelOrderMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`orders/${id}/cancel`, { method: 'PUT' }, authToken || ''),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
-  });
+ const cancelOrderMutation = useMutation({
+  mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+    apiFetch(
+      `orders/${id}/cancel`,
+      {
+        method: 'PUT',
+        body: {
+          reason: reason || "NO_REASON",
+        },
+      },
+      authToken || ''
+    ),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['orders'] });
+  },
+});
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -492,18 +540,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
   });
 
-  const updateUserMutation = useMutation({
-    mutationFn: (data: any) =>
-      apiFetch('user/profile', { method: 'PUT', body: data }, authToken || ''),
-    onSuccess: (newData) => {
-      setUser((prev) => {
-        if (!prev) return null;
-        const updated = { ...prev, ...newData };
-        AsyncStorage.setItem('userData', JSON.stringify(updated));
-        return updated;
-      });
-    },
-  });
+  // const updateUserMutation = useMutation({
+  //   mutationFn: (data: any) =>
+  //     apiFetch('user/profile', { method: 'PUT', body: data }, authToken || ''),
+  //   onSuccess: (newData) => {
+  //     setUser((prev) => {
+  //       if (!prev) return null;
+  //       const updated = { ...prev, ...newData };
+  //       AsyncStorage.setItem('userData', JSON.stringify(updated));
+  //       return updated;
+  //     });
+  //   },
+  // });
+
+
+const updateUserMutation = useMutation({
+  mutationFn: async (data: Partial<UserProfile>) => {
+    return await apiFetch(
+      'user/profile',
+      {
+        method: 'PUT',
+        body: data,
+      },
+      authToken || ''
+    );
+  },
+  onSuccess: async (newData) => {
+    setUser((prev) => {
+      if (!prev) return null;
+
+      const updatedUser: UserProfile = {
+        ...prev,
+        ...newData,
+        profileImage: newData.profileImage ?? prev.profileImage,
+      };
+
+      AsyncStorage.setItem('userData', JSON.stringify(updatedUser)).catch(
+        console.error
+      );
+
+      return updatedUser;
+    });
+  },
+});
+
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) =>
@@ -534,7 +614,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!authToken) return;
 
     // Check for different outlet
-    if (!skipOutletCheck && cart.length > 0 && cart[0].outletId !== item.outletId) {
+    if (!skipOutletCheck && cart.length > 0 && item.outletId && cart[0].outletId !== item.outletId) {
       showAlert({
         title: 'Start New Order?',
         message: `Your cart contains items from ${cart[0].outletName}. Would you like to clear it and add items from ${item.outletName}?`,
@@ -569,18 +649,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const placeOrder = React.useCallback(async (
     time: string,
     paymentMethod: string,
-    specialInstructions?: string
+    specialInstructions?: string,
+      couponCode?: string,
+        orderType?: 'Dine In' | 'Takeaway'
+
+
   ): Promise<Order> => {
     if (!authToken) throw new Error('User not authenticated');
     try {
-      const result = await placeOrderMutation.mutateAsync({
-        items: cart.map((item: CartItem) => ({ id: item.id, quantity: item.quantity })),
-        pickupSlot: time,
-        pickupTime: time, // Send both for compatibility
-        outletId: cart[0]?.outletId,
-        paymentMethod: paymentMethod,
-        specialInstructions: specialInstructions,
-      });
+  const body: any = {
+  items: cart.map((item: CartItem) => ({
+    id: item.id,
+    quantity: item.quantity,
+  })),
+  pickupSlot: time,
+  pickupTime: time,
+  outletId: cart[0]?.outletId,
+  paymentMethod: paymentMethod,
+  specialInstructions: specialInstructions,
+orderType: orderType === 'Dine In' ? 'Dine In' : 'Takeaway',
+};
+
+// ✅ Only attach coupon if it exists
+if (couponCode) {
+  body.couponCode = couponCode;
+}
+
+const result = await placeOrderMutation.mutateAsync(body);
+
       return result as Order;
     } catch (error: any) {
       showAlert({
@@ -654,21 +750,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     orders,
     placeOrder,
-    cancelOrder: (id) => cancelOrderMutation.mutate(id),
+    cancelOrder: (id: string, reason?: string) => cancelOrderMutation.mutate({ id, reason }),
 
     favorites,
     toggleFavorite: (id) => toggleFavoriteMutation.mutate(id),
+    favoriteItems,
 
     outlets,
     campuses,
     selectedCampus,
     setSelectedCampus,
-
+    isMenuLoading,
     activeOutletId,
     setActiveOutletId,
 
     deals,
     menuItems,
+    
     categories,
     searchGlobalItems,
     fetchMenuItems: async (outletId: string) => {

@@ -1,96 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, Alert, TextInput, Modal } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Clock, Store, Wallet, ShieldCheck, AlertCircle, X } from 'lucide-react-native';
-
+import { ArrowLeft, Clock, Store, Wallet, ShieldCheck } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Layout } from '../components/ui/layout';
 import { Text } from '../components/ui/text';
 import { useStore } from '../context/StoreContext';
 import { hapticFeedback } from '../utils/haptics';
 import { playSound } from '../utils/sound';
 import { SlideButton } from '../components/ui/SlideButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import RazorpayCheckout from 'react-native-razorpay';
+
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { cart, placeOrder, orders, getOutletSlots, outlets } = useStore();
+  
+  const { cart, placeOrder, orders, getOutletSlots, outlets ,user} = useStore();
+  const insets = useSafeAreaInsets();
+const params = useLocalSearchParams<{
+  orderType?: 'Dine In' | 'Takeaway';
+  instructions?: string;
+  appliedCoupon?: string;
+}>();
 
+const orderType = params.orderType;
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<
-    { time: string; available: boolean; remaining: number; isHighTraffic: boolean }[]
+    { time: string; available: boolean; remaining: number; isHighTraffic: boolean,     limit: number; 
+ }[]
   >([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Prepaid'>('COD'); // Default COD
-  const [instructions, setInstructions] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Prepaid'>('Prepaid'); // Default UPI
+  const [instructions, setInstructions] = useState(params.instructions || '');
   const [showAllSlots, setShowAllSlots] = useState(false);
 
   // Coupon State
-  const [couponCode, setCouponCode] = useState('');
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
-
-  // Available Coupons State
-  const [isCouponsModalOpen, setIsCouponsModalOpen] = useState(false);
-  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
-
-  // Fetch Available Coupons
-  useEffect(() => {
-    const fetchCoupons = async () => {
-      if (!cart[0]?.outletId) return;
-      try {
-        const { apiFetch } = require('../utils/api');
-        const token = await AsyncStorage.getItem('authToken');
-        // @ts-ignore
-        const fetchedCoupons = await apiFetch(`offers/available?outletId=${cart[0].outletId}`, {}, token || '');
-        setAvailableCoupons(fetchedCoupons);
-      } catch (e) {
-        console.log('Error fetching coupons', e);
-      }
-    };
-    fetchCoupons();
-  }, [cart]);
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode) return;
-    setIsApplyingCoupon(true);
-    try {
-      const { apiFetch } = require('../utils/api'); // Lazy import to avoid cycle if any
-      // @ts-ignore
-      const response = await apiFetch('offers/validate', {
-        method: 'POST',
-        body: {
-          code: couponCode,
-          outletId: cart[0]?.outletId,
-          orderValue: subtotal
-        }
-      }, (await AsyncStorage.getItem('authToken')) || '');
-
-      setAppliedCoupon(response);
-      hapticFeedback.success();
-      Alert.alert('Success', `Coupon applied! You saved ₹${response.discount}`);
-    } catch (error: any) {
-      hapticFeedback.error();
-      Alert.alert('Invalid Coupon', error.message || 'Could not apply coupon');
-      setAppliedCoupon(null);
-    } finally {
-      setIsApplyingCoupon(false);
-    }
-  };
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(
+    params.appliedCoupon ? JSON.parse(params.appliedCoupon) : null
+  );
 
   // Load Last Payment Method
   useEffect(() => {
-    const loadPaymentPref = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('lastPaymentMethod');
-        if (stored === 'Prepaid' || stored === 'COD') {
-          setPaymentMethod(stored);
-        }
-      } catch (e) {
-        console.error('Failed to load payment pref', e);
+  const loadPaymentPref = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('lastPaymentMethod');
+
+      // Only override if stored is Prepaid
+      if (stored === 'Prepaid') {
+        setPaymentMethod('Prepaid');
       }
-    };
-    loadPaymentPref();
-  }, []);
+
+      // If stored is COD → ignore and keep Prepaid default
+    } catch (e) {
+      console.error('Failed to load payment pref', e);
+    }
+  };
+  loadPaymentPref();
+}, []);
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -121,21 +89,24 @@ export default function CheckoutScreen() {
           const slots = await getOutletSlots(cart[0].outletId);
 
           // Inject "Pickup Now" if applicable
-          if (allReadyToPick) {
-            slots.unshift({
-              time: 'Now',
-              available: true,
-              remaining: 99,
-              isHighTraffic: false,
-            });
-          }
+                          if (allReadyToPick) {
+                    const firstSlotLimit = slots[0]?.limit ?? 10; // fallback limit if not provided
+                    slots.unshift({
+                      time: 'Now',
+                      available: true,
+                      remaining: firstSlotLimit,
+                      isHighTraffic: false,
+                      limit: firstSlotLimit,
+                    });
+                  }
+
 
           setTimeSlots(slots);
           // Select first available slot if none selected
-          if (!selectedTime && slots.length > 0) {
-            const firstAvailable = slots.find((s) => s.available);
-            if (firstAvailable) setSelectedTime(firstAvailable.time);
-          }
+          // if (!selectedTime && slots.length > 0) {
+          //   const firstAvailable = slots.find((s) => s.available);
+          //   if (firstAvailable) setSelectedTime(firstAvailable.time);
+          // }
         } catch (error) {
           console.error('Failed to fetch slots', error);
         } finally {
@@ -150,58 +121,157 @@ export default function CheckoutScreen() {
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const tax = Math.round(subtotal * 0.08);
   const discount = appliedCoupon ? appliedCoupon.discount : 0;
-  const total = Math.max(0, subtotal + tax - discount); // Zero Delivery Fee
+  const total = Math.max(0, subtotal - discount); // Zero Delivery Fee
 
-  const handleOrderSuccess = async () => {
-    if (selectedTime) {
-      try {
-        // Save Preference
-        await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
+//   const handleOrderSuccess = async () => {
+//     if (selectedTime) {
+//       try {
+//         // Save Preference
+//         await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
 
-        const newOrder = await placeOrder(selectedTime, paymentMethod, instructions);
-        // Play Success Sound
-        await playSound('order_placed');
-        // Success - navigate with orderId
-        router.replace({ pathname: '/order-confirmation', params: { orderId: newOrder.id } });
-      } catch (error: any) {
-        console.error('Order placement failed:', error);
+//         const newOrder = await placeOrder(selectedTime, paymentMethod, instructions,  appliedCoupon?.code   // ✅ only sends if applied
+// );
+//         // Play Success Sound
+//         await playSound('order_placed');
+//         // Success - navigate with orderId
+//         router.replace({ pathname: '/order-confirmation', params: { orderId: newOrder.id } });
+//       } catch (error: any) {
+//         console.error('Order placement failed:', error);
 
-        const errorMessage = error.message || 'Unknown error';
+//         const errorMessage = error.message || 'Unknown error';
 
-        // Check for unavailable item error
-        if (errorMessage.includes('not found or unavailable')) {
-          // Try to extract ID
-          const match = errorMessage.match(/ID ([a-f0-9-]+) not found/);
-          let itemName = 'An item';
+//         // Check for unavailable item error
+//         if (errorMessage.includes('not found or unavailable')) {
+//           // Try to extract ID
+//           const match = errorMessage.match(/ID ([a-f0-9-]+) not found/);
+//           let itemName = 'An item';
 
-          if (match && match[1]) {
-            const itemId = match[1];
-            const cartItem = cart.find((i) => i.id === itemId);
-            if (cartItem) {
-              itemName = cartItem.name;
-            }
-          }
+//           if (match && match[1]) {
+//             const itemId = match[1];
+//             const cartItem = cart.find((i) => i.id === itemId);
+//             if (cartItem) {
+//               itemName = cartItem.name;
+//             }
+//           }
 
-          Alert.alert(
-            'Item Unavailable',
-            `${itemName} is no longer available. Please remove it from your cart to proceed.`,
-            [
-              { text: 'OK', onPress: () => router.back() }, // Go back to cart
-            ]
-          );
-        } else {
-          Alert.alert(
-            'Order Failed',
-            errorMessage || 'Could not place your order. Please try again.'
-          );
-        }
+//           Alert.alert(
+//             'Item Unavailable',
+//             `${itemName} is no longer available. Please remove it from your cart to proceed.`,
+//             [
+//               { text: 'OK', onPress: () => router.back() }, // Go back to cart
+//             ]
+//           );
+//         } else {
+//           Alert.alert(
+//             'Order Failed',
+//             errorMessage || 'Could not place your order. Please try again.'
+//           );
+//         }
 
-        // Re-throw to let SlideButton know it failed
-        throw error;
-      }
+//         // Re-throw to let SlideButton know it failed
+//         throw error;
+//       }
+//     }
+//   };
+
+
+const handleOrderSuccess = async () => {
+  if (!selectedTime) return;
+
+  try {
+    await AsyncStorage.setItem('lastPaymentMethod', paymentMethod);
+
+    const backendPaymentMethod =
+  paymentMethod === 'COD' ? 'COD' : 'UPI';
+
+    // 1️⃣ Create Order in your DB
+    const newOrder = await placeOrder(
+      selectedTime,
+      backendPaymentMethod,
+      instructions,
+      appliedCoupon?.code,
+        orderType
+
+    );
+
+    // 2️⃣ If COD → Done
+    if (paymentMethod === 'COD') {
+      await playSound('order_placed');
+      router.replace({
+        pathname: '/order-confirmation',
+        params: { orderId: newOrder.id },
+      });
+      return;
     }
-  };
 
+    // 3️⃣ If Prepaid → Create Razorpay Order
+    const { apiFetch } = require('../utils/api');
+
+    const paymentOrder = await apiFetch(
+      'payments/create-order',
+      {
+        method: 'POST',
+        body: { orderId: newOrder.id },
+      },
+      await AsyncStorage.getItem('authToken') || ''
+    );
+
+    // 4️⃣ Open Razorpay
+    const options = {
+      description: 'Campus Food Order',
+      image: 'https://yourlogo.com/logo.png',
+      currency: 'INR',
+      key: 'rzp_test_S7KeATm2fFOCTu', // ✅ ONLY KEY ID
+      amount: paymentOrder.amount,
+      order_id: paymentOrder.razorpayOrderId,
+      name: 'Zordr',
+      prefill: {
+        email: user?.email,
+        contact: user?.phone,
+        name: user?.name,
+      },
+      theme: { color: '#FF5500' },
+    };
+
+    RazorpayCheckout.open(options)
+      .then(async (data: any) => {
+        // 5️⃣ Verify Payment
+        await apiFetch(
+          'payments/verify',
+          {
+            method: 'POST',
+            body: {
+              razorpay_order_id: data.razorpay_order_id,
+              razorpay_payment_id: data.razorpay_payment_id,
+              razorpay_signature: data.razorpay_signature,
+              orderId: newOrder.id,
+            },
+          },
+          await AsyncStorage.getItem('authToken') || ''
+        );
+
+        await playSound('order_placed');
+
+        router.replace({
+          pathname: '/order-confirmation',
+          params: { orderId: newOrder.id },
+        });
+      })
+      .catch((error: any) => {
+  router.replace({
+    pathname: '/payment-failed',
+    params: { orderId: newOrder.id }
+  });
+});
+
+  } catch (error: any) {
+    Alert.alert(
+      'Order Failed',
+      error.message || 'Could not place your order.'
+    );
+    throw error;
+  }
+};
   return (
     <Layout className="flex-1 bg-black" safeArea>
       <Stack.Screen options={{ headerShown: false }} />
@@ -257,10 +327,10 @@ export default function CheckoutScreen() {
           <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest">
             Select Pickup Slot
           </Text>
-          <View className="flex-row items-center gap-1">
+          {/* <View className="flex-row items-center gap-1">
             <View className="w-2 h-2 rounded-full bg-gray-600" />
             <Text className="text-[10px] text-gray-500 font-bold">Grey = High Traffic</Text>
-          </View>
+          </View> */}
         </View>
 
         <View className="flex-row flex-wrap gap-3 mb-4">
@@ -269,53 +339,117 @@ export default function CheckoutScreen() {
           ) : timeSlots.length === 0 ? (
             <Text className="text-red-500">No slots available (Outlet Closed)</Text>
           ) : (
-            (showAllSlots ? timeSlots : timeSlots.slice(0, 9)).map((slot) => {
-              const isSelected = selectedTime === slot.time;
-              const isFull = !slot.available;
-              const isHighTraffic = slot.isHighTraffic;
+      (showAllSlots ? timeSlots : timeSlots.slice(0, 9)).map((slot) => {
+        const isSelected = selectedTime === slot.time;
 
-              return (
-                <TouchableOpacity
-                  key={slot.time}
-                  disabled={isFull}
-                  onPress={() => {
-                    hapticFeedback.selection();
-                    setSelectedTime(slot.time);
-                  }}
-                  activeOpacity={0.8}
-                  style={
-                    isSelected
-                      ? {
-                        shadowColor: '#FF5500',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 8,
-                        elevation: 6,
-                      }
-                      : {}
-                  }
-                  className={`w-[30%] h-12 rounded-xl items-center justify-center border ${isFull
-                    ? 'bg-white/5 border-white/5 opacity-40' // Disabled Style
-                    : isSelected
-                      ? 'bg-[#FF5500] border-[#FF5500]' // Selected Style
-                      : isHighTraffic
-                        ? 'bg-[#1A1A1A] border-gray-600' // High Traffic
-                        : 'bg-[#1A1A1A] border-white/5' // Default Style
-                    }`}
-                >
-                  <Text
-                    className={`font-bold ${isFull
-                      ? 'text-gray-500 line-through'
-                      : isSelected
-                        ? 'text-white'
-                        : 'text-gray-400'
-                      }`}
-                  >
-                    {slot.time}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
+        const remaining = slot.remaining ?? 0;
+      const limit = slot.limit ?? 10;
+
+      const bookedPercentage = ((limit - remaining) / limit) * 100;
+      const availablePercentage = (remaining / limit) * 100;
+        const isFull = remaining === 0 || !slot.available;
+        const isLowStock = remaining > 0 && remaining < 5;
+
+       // default green
+
+let borderColorClass = 'border-[#10B981]'; // emerald default
+
+if (isFull) {
+  borderColorClass = 'border-[#374151]'; // gray-700
+} else if (bookedPercentage >= 80) {
+borderColorClass = 'border-red-500/30';
+} else if (bookedPercentage >= 50) {
+  borderColorClass = 'border-[#F59E0B]'; // yellow-500
+} else {
+  borderColorClass = 'border-[#10B981]'; // emerald-500
+}
+        const isHighTraffic = slot.isHighTraffic;
+
+        return (
+          <TouchableOpacity
+            key={slot.time}
+            disabled={isFull}
+            onPress={() => {
+              hapticFeedback.selection();
+              setSelectedTime(slot.time);
+            }}
+            activeOpacity={0.8}
+            className={`w-[30%] h-16 rounded-xl items-center justify-center border relative overflow-hidden ${
+  isFull
+    ? 'bg-gray-800 opacity-60 border-gray-700'
+    : isSelected
+    ? 'bg-[#FF5500] border-[#FF5500]'
+    : `bg-[#1A1A1A] ${borderColorClass}`
+}`}
+
+          >
+            {/* Time */}
+            <Text
+        className={`font-bold z-10 ${
+          isFull
+            ? 'text-gray-500'
+            : isSelected
+            ? 'text-white'
+            : 'text-white'
+        }`}
+      >
+        {slot.time}
+      </Text>
+
+
+            {/* Sub Text */}
+            {!isFull && (
+  <Text
+    className={`text-[9px] mt-1 font-bold z-10 ${
+      isSelected
+        ? 'text-black/80'
+        : isLowStock
+        ? 'text-red-400'
+        : 'text-gray-500'
+    }`}
+  >
+    {isLowStock
+      ? `Only ${remaining} left`
+      : `${remaining}/${limit} available`}
+  </Text>
+)}
+            {/* FULL Label */}
+            {isFull && (
+              <Text className="text-[9px] mt-1 text-gray-500 font-bold">
+                FULL
+              </Text>
+            )}
+
+            {/* High Traffic Badge */}
+            {isHighTraffic && !isFull && !isSelected && (
+        <View className="absolute top-0 right-0 bg-orange-500 px-2 py-[2px] rounded-bl-lg">
+          <Text className="text-[8px] text-black font-black tracking-wide">
+            HIGH TRAFFIC
+          </Text>
+        </View>
+      )}
+
+
+            {/* Availability Bar */}
+            {/* Booking Fill Background */}
+      {!isFull && bookedPercentage > 0 && (
+        <View
+          style={{ width: `${bookedPercentage}%` }}
+          className={`absolute left-0 top-0 bottom-0 rounded-xl ${
+            availablePercentage > 50
+              ? 'bg-yellow-500/20'
+              : availablePercentage > 10
+              ? 'bg-orange-500/25'
+              : 'bg-red-500/20'
+          }`}
+        />
+      )}
+
+          </TouchableOpacity>
+        );
+      })
+
+
           )}
         </View>
 
@@ -333,117 +467,6 @@ export default function CheckoutScreen() {
             </Text>
           </TouchableOpacity>
         )}
-
-
-
-        {/* SECTION 3.5: OFFERS & COUPONS */}
-        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-          Offers & Benefits
-        </Text>
-        <View className="bg-[#1A1A1A] rounded-[24px] border border-white/5 p-4 mb-8">
-          <View className="flex-row gap-3 items-center">
-            <View className="flex-1">
-              <TextInput
-                placeholder="Enter Coupon Code"
-                placeholderTextColor="#6B7280"
-                value={couponCode}
-                onChangeText={(text) => {
-                  setCouponCode(text);
-                  setAppliedCoupon(null);
-                }}
-                className="bg-black/30 h-12 rounded-xl px-4 text-white font-bold border border-white/5 w-full"
-              />
-              <TouchableOpacity onPress={() => setIsCouponsModalOpen(true)} className="mt-2 ml-1">
-                <Text className="text-primary text-xs font-bold underline">View Available Coupons</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              onPress={handleApplyCoupon}
-              disabled={!couponCode || isApplyingCoupon}
-              className={`h-12 px-6 rounded-xl items-center justify-center ${appliedCoupon ? 'bg-green-500' : 'bg-primary'
-                }`}
-            >
-              <Text className="text-white font-bold">
-                {isApplyingCoupon ? '...' : appliedCoupon ? 'APPLIED' : 'APPLY'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {appliedCoupon && (
-            <View className="mt-3 flex-row items-center gap-2">
-              <ShieldCheck size={14} color="#10b981" />
-              <Text className="text-emerald-500 text-xs font-bold">
-                '{appliedCoupon.code}' applied! You saved ₹{appliedCoupon.discount.toFixed(0)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <Modal
-          visible={isCouponsModalOpen}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setIsCouponsModalOpen(false)}
-        >
-          <View className="flex-1 bg-black/80 justify-end">
-            <View className="bg-[#1A1A1A] rounded-t-[32px] p-6 h-[70%] border-t border-white/10">
-              <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-xl font-bold text-white">Available Coupons</Text>
-                <TouchableOpacity onPress={() => setIsCouponsModalOpen(false)} className="p-2 bg-white/10 rounded-full">
-                  <X size={20} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-                {availableCoupons.length === 0 ? (
-                  <Text className="text-gray-500 text-center mt-10">No coupons available for this outlet.</Text>
-                ) : (
-                  availableCoupons.map((coupon: any) => (
-                    <TouchableOpacity
-                      key={coupon.id}
-                      onPress={() => {
-                        setCouponCode(coupon.code);
-                        setIsCouponsModalOpen(false);
-                        // Optional: Auto apply
-                      }}
-                      className="bg-black/40 border border-white/5 p-4 rounded-xl mb-3 flex-row justify-between items-center"
-                    >
-                      <View className="flex-1">
-                        <View className="border-dashed border border-primary bg-primary/10 self-start px-2 py-1 rounded mb-2">
-                          <Text className="text-primary font-bold text-xs uppercase">{coupon.code}</Text>
-                        </View>
-                        <Text className="text-white font-bold text-sm mb-1">{coupon.description}</Text>
-                        <Text className="text-gray-500 text-[10px]">Min Order: ₹{coupon.minOrderVal}</Text>
-                      </View>
-                      <View>
-                        <Text className="text-white font-bold text-lg">
-                          {coupon.discountType === 'PERCENTAGE' ? `${coupon.value}%` : `₹${coupon.value}`}
-                        </Text>
-                        <Text className="text-gray-500 text-[10px] text-right">OFF</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* SECTION 4: INSTRUCTIONS */}
-        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-          Cooking Instructions
-        </Text>
-        <View className="bg-[#1A1A1A] rounded-[24px] border border-white/5 p-4 mb-8">
-          <TextInput
-            placeholder="e.g. Less spicy, Extra ketchup..."
-            placeholderTextColor="#6B7280"
-            value={instructions}
-            onChangeText={setInstructions}
-            multiline
-            numberOfLines={3}
-            style={{ color: 'white', textAlignVertical: 'top' }}
-            className="text-white text-sm min-h-[60px]"
-          />
-        </View>
 
         {/* SECTION 4: PAYMENT METHOD */}
         <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
@@ -531,10 +554,10 @@ export default function CheckoutScreen() {
             <Text className="text-gray-400">Item Total</Text>
             <Text className="text-white font-medium">₹{subtotal}</Text>
           </View>
-          <View className="flex-row justify-between mb-2">
+          {/* <View className="flex-row justify-between mb-2">
             <Text className="text-gray-400">Taxes & Charges</Text>
             <Text className="text-white font-medium">₹{tax}</Text>
-          </View>
+          </View> */}
           <View className="flex-row justify-between mb-2">
             <Text className="text-success text-xs">Pickup Delivery Fee</Text>
             <Text className="text-success font-medium">FREE</Text>
@@ -554,7 +577,10 @@ export default function CheckoutScreen() {
       </ScrollView>
 
       {/* BOTTOM ACTION BAR */}
-      <View className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10 pb-10">
+      <View 
+        style={{ paddingBottom: 20 + insets.bottom }}
+
+      className="absolute bottom-0 left-0 right-0 p-6 bg-black border-t border-white/10 pb-10">
         {/* Slide to Pay Button */}
         {selectedTime ? (
           <SlideButton amount={total} onSlideSuccess={handleOrderSuccess} />

@@ -48,6 +48,18 @@ import { playSound } from '../utils/sound';
  * - Auto-redirects to pickup success screen when status is 'completed'.
  */
 export default function OrderConfirmationScreen() {
+
+
+  type OrderItem = {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+  outletId: string;
+  isReadyToPick: boolean;
+  prepTime: number;
+};
   const router = useRouter();
   const params = useLocalSearchParams();
   const { orders, authToken } = useStore();
@@ -295,16 +307,73 @@ export default function OrderConfirmationScreen() {
             <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
               ORDER ID
             </Text>
-            <Text className="text-5xl font-black text-white tracking-tighter">
-              #{activeOrder.id.slice(-5).toUpperCase()}
+            <Text className="text-2xl font-black text-white tracking-tighter">
+              {/* #{activeOrder.orderNumber.slice(-5).toUpperCase()} */}
+              #{activeOrder.orderNumber}
             </Text>
+            {/* <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
+              ORDER ID
+            </Text>
+             <Text className="text-5xl font-black text-white tracking-tighter">
+              #{activeOrder.id.slice(-5).toUpperCase()}
+            </Text> */}
+<View className="w-full items-center mb-6">
+  <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-4">
+    Items
+  </Text>
+
+  {activeOrder.items?.length ? (
+    activeOrder.items.map((item:OrderItem) => (
+      <View
+        key={item.id}
+        className="w-[85%] bg-[#252525] px-4 py-3 rounded-2xl flex-row justify-between items-center mb-3"
+      >
+        <View>
+          <Text className="text-white font-bold text-base">
+            {item.name}
+          </Text>
+
+          {/* <Text className="text-gray-400 text-xs">
+            Type: {activeOrder.orderType}
+          </Text> */}
+          
+        </View>
+
+        <Text className="text-orange-400 font-black text-lg">
+         Qty : {item.quantity || 'N/A'}
+        </Text>
+      </View>
+    ))
+  ) : (
+    <Text className="text-white">N/A</Text>
+  )}
+<Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mb-2">
+              PICKED SLOT
+            </Text>
+
+   {activeOrder.picked_slot && (
+  <View className="w-[85%] bg-[#252525] mt-3 px-4 py-4 rounded-2xl flex-row justify-between items-center mb-2">
+    
+    <Text className="text-gray-400 text-sm font-semibold">
+      TIME
+    </Text>
+
+    <Text className="text-orange-400 font-black text-lg">
+      {activeOrder.picked_slot}
+    </Text>
+
+  </View>
+)}
+
+</View>
+            
           </View>
 
           <View className="w-[80%] h-[1px] bg-white/5 mb-8" />
 
           {/* QR Scanner Button - only visible when order is ready */}
           <TouchableOpacity
-            onPress={() => router.push('/qr-scanner')}
+            onPress={() => router.push(`/qr-scanner?orderId=${activeOrder.id}`)}
             activeOpacity={0.8}
             className="w-[85%] bg-white rounded-2xl h-14 flex-row items-center justify-center gap-3 shadow-lg mb-6"
           >
@@ -321,9 +390,19 @@ export default function OrderConfirmationScreen() {
             <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
               <MapPin size={14} color="#f97316" />
               <Text className="text-gray-300 font-bold text-xs">
-                Counter 4 • <Text className="text-white">{activeOrder.outletName}</Text>
+                <Text className="text-white">{activeOrder.outletName}</Text>
               </Text>
             </View>
+
+
+             <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
+            
+              <Text className="text-gray-300 font-bold text-xs">
+                ORDERTYPE: <Text className="text-orange-400 text-sm">{activeOrder.orderType}</Text>
+              </Text>
+            </View>
+
+            
 
             {/* Slot */}
             {activeOrder.pickupSlot && (
@@ -334,7 +413,7 @@ export default function OrderConfirmationScreen() {
             )}
 
             {/* Payment */}
-            <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
+            {/* <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
               {activeOrder.paymentMethod === 'COD' ? (
                 <Wallet size={14} color="#F59E0B" />
               ) : (
@@ -343,7 +422,35 @@ export default function OrderConfirmationScreen() {
               <Text className="text-gray-300 font-bold text-xs">
                 {activeOrder.paymentMethod === 'COD' ? 'Pay at Counter' : 'Prepaid'}
               </Text>
-            </View>
+            </View> */}
+
+
+            <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
+
+{activeOrder.paymentMethod === "UPI" && activeOrder.paymentStatus === "PAID" ? (
+  <>
+    <ShieldCheck size={14} color="#10B981" />
+    <Text className="text-gray-300 font-bold text-xs">
+      Prepaid
+    </Text>
+  </>
+) : activeOrder.paymentMethod === "UPI" && activeOrder.paymentStatus !== "PAID" ? (
+  <>
+    <Wallet size={14} color="#F59E0B" />
+    <Text className="text-gray-300 font-bold text-xs">
+      Payment Not Done • Pay at Counter
+    </Text>
+  </>
+) : (
+  <>
+    <Wallet size={14} color="#F59E0B" />
+    <Text className="text-gray-300 font-bold text-xs">
+      Pay at Counter
+    </Text>
+  </>
+)}
+
+</View>
           </View>
 
           <View className="w-full bg-red-500/5 border-t border-red-500/10 p-4">

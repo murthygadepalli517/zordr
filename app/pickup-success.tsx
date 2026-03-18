@@ -66,6 +66,16 @@ export default function PickupSuccessScreen() {
         false
       );
     }, 500);
+
+
+    const timer = setTimeout(() => {
+    router.replace({
+      pathname: '/(tabs)/orders',
+      params: { tab: 'past' },
+    });
+  }, 5000);
+
+  return () => clearTimeout(timer);
   }, []);
 
   // Animated Styles
@@ -169,6 +179,29 @@ export default function PickupSuccessScreen() {
           <Text className="text-gray-400 text-xs">Added to your loyalty balance</Text>
         </View>
       </Animated.View>
+
+
+      {/* --- RATE SECTION --- */}
+<Animated.View
+  entering={FadeInDown.delay(800).springify()}
+  className="mt-10 items-center px-8"
+>
+  <Text className="text-gray-400 text-base text-center mb-4">
+    Don’t forget to rate your experience ⭐
+  </Text>
+
+  <TouchableOpacity
+    onPress={() =>
+      router.replace({
+        pathname: '/(tabs)/orders',
+        params: { tab: 'past' },
+      })
+    }
+    className="bg-[#FF5500] px-8 py-4 rounded-2xl"
+  >
+    <Text className="text-white font-bold text-lg">Rate Now</Text>
+  </TouchableOpacity>
+</Animated.View>
 
       {/* --- ACTIONS --- */}
       <View className="absolute bottom-10 w-full px-6 gap-4">
