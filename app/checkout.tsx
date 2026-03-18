@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, Alert, TextInput, Modal } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Clock, Store, Wallet, ShieldCheck, AlertCircle, X } from 'lucide-react-native';
+import { ArrowLeft, Clock, Store, Wallet, ShieldCheck } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Layout } from '../components/ui/layout';
 import { Text } from '../components/ui/text';
@@ -21,6 +21,8 @@ export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
 const params = useLocalSearchParams<{
   orderType?: 'Dine In' | 'Takeaway';
+  instructions?: string;
+  appliedCoupon?: string;
 }>();
 
 const orderType = params.orderType;
@@ -31,64 +33,16 @@ const orderType = params.orderType;
   >([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Prepaid'>('Prepaid'); // Default UPI
-  const [instructions, setInstructions] = useState('');
+  const [instructions, setInstructions] = useState(params.instructions || '');
   const [showAllSlots, setShowAllSlots] = useState(false);
 
   // Coupon State
-  const [couponCode, setCouponCode] = useState('');
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
-
-  // Available Coupons State
-  const [isCouponsModalOpen, setIsCouponsModalOpen] = useState(false);
-  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
-
-  // Fetch Available Coupons
-  useEffect(() => {
-    const fetchCoupons = async () => {
-      if (!cart[0]?.outletId) return;
-      try {
-        const { apiFetch } = require('../utils/api');
-        const token = await AsyncStorage.getItem('authToken');
-        // @ts-ignore
-        const fetchedCoupons = await apiFetch(`offers/available?outletId=${cart[0].outletId}`, {}, token || '');
-        setAvailableCoupons(fetchedCoupons);
-      } catch (e) {
-        console.log('Error fetching coupons', e);
-      }
-    };
-    fetchCoupons();
-  }, [cart]);
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode) return;
-    setIsApplyingCoupon(true);
-    try {
-      const { apiFetch } = require('../utils/api'); // Lazy import to avoid cycle if any
-      // @ts-ignore
-      const response = await apiFetch('offers/validate', {
-        method: 'POST',
-        body: {
-          code: couponCode,
-          outletId: cart[0]?.outletId,
-          orderValue: subtotal
-        }
-      }, (await AsyncStorage.getItem('authToken')) || '');
-
-      setAppliedCoupon(response);
-      hapticFeedback.success();
-      Alert.alert('Success', `Coupon applied! You saved ₹${response.discount}`);
-    } catch (error: any) {
-      hapticFeedback.error();
-      Alert.alert('Invalid Coupon', error.message || 'Could not apply coupon');
-      setAppliedCoupon(null);
-    } finally {
-      setIsApplyingCoupon(false);
-    }
-  };
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(
+    params.appliedCoupon ? JSON.parse(params.appliedCoupon) : null
+  );
 
   // Load Last Payment Method
- useEffect(() => {
+  useEffect(() => {
   const loadPaymentPref = async () => {
     try {
       const stored = await AsyncStorage.getItem('lastPaymentMethod');
@@ -513,117 +467,6 @@ borderColorClass = 'border-red-500/30';
             </Text>
           </TouchableOpacity>
         )}
-
-
-
-        {/* SECTION 3.5: OFFERS & COUPONS */}
-        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-          Offers & Benefits
-        </Text>
-        <View className="bg-[#1A1A1A] rounded-[24px] border border-white/5 p-4 mb-8">
-          <View className="flex-row gap-3 items-center">
-            <View className="flex-1">
-              <TextInput
-                placeholder="Enter Coupon Code"
-                placeholderTextColor="#6B7280"
-                value={couponCode}
-                onChangeText={(text) => {
-                  setCouponCode(text);
-                  setAppliedCoupon(null);
-                }}
-                className="bg-black/30 h-12 rounded-xl px-4 text-white font-bold border border-white/5 w-full"
-              />
-              <TouchableOpacity onPress={() => setIsCouponsModalOpen(true)} className="mt-2 ml-1">
-                <Text className="text-primary text-xs font-bold underline">View Available Coupons</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              onPress={handleApplyCoupon}
-              disabled={!couponCode || isApplyingCoupon}
-              className={`h-12 px-6 rounded-xl items-center justify-center ${appliedCoupon ? 'bg-green-500' : 'bg-primary'
-                }`}
-            >
-              <Text className="text-white font-bold">
-                {isApplyingCoupon ? '...' : appliedCoupon ? 'APPLIED' : 'APPLY'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {appliedCoupon && (
-            <View className="mt-3 flex-row items-center gap-2">
-              <ShieldCheck size={14} color="#10b981" />
-              <Text className="text-emerald-500 text-xs font-bold">
-                '{appliedCoupon.code}' applied! You saved ₹{appliedCoupon.discount.toFixed(0)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <Modal
-          visible={isCouponsModalOpen}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setIsCouponsModalOpen(false)}
-        >
-          <View className="flex-1 bg-black/80 justify-end">
-            <View className="bg-[#1A1A1A] rounded-t-[32px] p-6 h-[70%] border-t border-white/10">
-              <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-xl font-bold text-white">Available Coupons</Text>
-                <TouchableOpacity onPress={() => setIsCouponsModalOpen(false)} className="p-2 bg-white/10 rounded-full">
-                  <X size={20} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-                {availableCoupons.length === 0 ? (
-                  <Text className="text-gray-500 text-center mt-10">No coupons available for this outlet.</Text>
-                ) : (
-                  availableCoupons.map((coupon: any) => (
-                    <TouchableOpacity
-                      key={coupon.id}
-                      onPress={() => {
-                        setCouponCode(coupon.code);
-                        setIsCouponsModalOpen(false);
-                        // Optional: Auto apply
-                      }}
-                      className="bg-black/40 border border-white/5 p-4 rounded-xl mb-3 flex-row justify-between items-center"
-                    >
-                      <View className="flex-1">
-                        <View className="border-dashed border border-primary bg-primary/10 self-start px-2 py-1 rounded mb-2">
-                          <Text className="text-primary font-bold text-xs uppercase">{coupon.code}</Text>
-                        </View>
-                        <Text className="text-white font-bold text-sm mb-1">{coupon.description}</Text>
-                        <Text className="text-gray-500 text-[10px]">Min Order: ₹{coupon.minOrderVal}</Text>
-                      </View>
-                      <View>
-                        <Text className="text-white font-bold text-lg">
-                          {coupon.discountType === 'PERCENTAGE' ? `${coupon.value}%` : `₹${coupon.value}`}
-                        </Text>
-                        <Text className="text-gray-500 text-[10px] text-right">OFF</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* SECTION 4: INSTRUCTIONS */}
-        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-          Cooking Instructions
-        </Text>
-        <View className="bg-[#1A1A1A] rounded-[24px] border border-white/5 p-4 mb-8">
-          <TextInput
-            placeholder="e.g. Less spicy, Extra ketchup..."
-            placeholderTextColor="#6B7280"
-            value={instructions}
-            onChangeText={setInstructions}
-            multiline
-            numberOfLines={3}
-            style={{ color: 'white', textAlignVertical: 'top' }}
-            className="text-white text-sm min-h-[60px]"
-          />
-        </View>
 
         {/* SECTION 4: PAYMENT METHOD */}
         <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">

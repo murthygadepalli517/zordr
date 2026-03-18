@@ -390,7 +390,7 @@ export default function OrderConfirmationScreen() {
             <View className="bg-[#252525] px-4 py-2 rounded-full flex-row items-center gap-2">
               <MapPin size={14} color="#f97316" />
               <Text className="text-gray-300 font-bold text-xs">
-                Counter 4 • <Text className="text-white">{activeOrder.outletName}</Text>
+                <Text className="text-white">{activeOrder.outletName}</Text>
               </Text>
             </View>
 
