@@ -536,6 +536,7 @@ const [orderType, setOrderType] = useState<'Dine In' | 'Takeaway' | null>('Dine 
           style={{ bottom: insets.bottom -20 }}
 
       >
+        
         <Button
           label={`Checkout • ₹${total.toFixed(0)}`}
           onPress={() => {
