@@ -359,10 +359,30 @@ export default function OrderConfirmationScreen() {
     </Text>
 
     <Text className="text-orange-400 font-black text-lg">
-      {activeOrder.picked_slot}
+      {activeOrder.pickupSlotRange}
     </Text>
 
+
+
   </View>
+)}
+
+{activeOrder.paymentMethod === 'COD' && activeOrder.paymentSlot && (
+  <>
+    <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mt-4 mb-2">
+      PAYMENT SLOT
+    </Text>
+
+    <View className="w-[85%] bg-[#252525] px-4 py-4 rounded-2xl flex-row justify-between items-center mb-2">
+      <Text className="text-gray-400 text-sm font-semibold">
+        TIME
+      </Text>
+
+      <Text className="text-yellow-400 font-black text-lg">
+        {activeOrder.paymentSlot}
+      </Text>
+    </View>
+  </>
 )}
 
 </View>

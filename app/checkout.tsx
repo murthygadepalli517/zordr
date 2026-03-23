@@ -5,14 +5,15 @@ import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, Clock, Store, Wallet, ShieldCheck } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Layout } from '../components/ui/layout';
-import { Text } from '../components/ui/text';
+// import { Text } from '../components/ui/text';
 import { useStore } from '../context/StoreContext';
 import { hapticFeedback } from '../utils/haptics';
 import { playSound } from '../utils/sound';
 import { SlideButton } from '../components/ui/SlideButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RazorpayCheckout from 'react-native-razorpay';
-
+import { CustomAlertModal } from '../components/ui/CustomAlertModal';
+import { Text } from 'react-native';
 
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -27,8 +28,19 @@ const params = useLocalSearchParams<{
 
 const orderType = params.orderType;
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+
+const [showCodAlert, setShowCodAlert] = useState(false);
+  
   const [timeSlots, setTimeSlots] = useState<
-    { time: string; available: boolean; remaining: number; isHighTraffic: boolean,     limit: number; 
+    { time: string; 
+      available: boolean;
+       remaining: number;
+        isHighTraffic: boolean,
+             limit: number;
+             startTime: string;
+    endTime: string;
+
  }[]
   >([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
@@ -40,6 +52,20 @@ const orderType = params.orderType;
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(
     params.appliedCoupon ? JSON.parse(params.appliedCoupon) : null
   );
+
+
+  const getNextSlot = () => {
+  if (!selectedTime || timeSlots.length === 0) return null;
+
+  const currentIndex = timeSlots.findIndex(
+    (slot) => `${slot.startTime}-${slot.endTime}` === selectedTime
+  );
+
+  if (currentIndex === -1) return null;
+
+  return timeSlots[currentIndex + 1] || null;
+};
+  
 
   // Load Last Payment Method
   useEffect(() => {
@@ -87,6 +113,7 @@ const orderType = params.orderType;
 
         try {
           const slots = await getOutletSlots(cart[0].outletId);
+          
 
           // Inject "Pickup Now" if applicable
                           if (allReadyToPick) {
@@ -97,6 +124,7 @@ const orderType = params.orderType;
                       remaining: firstSlotLimit,
                       isHighTraffic: false,
                       limit: firstSlotLimit,
+                      
                     });
                   }
 
@@ -340,7 +368,10 @@ const handleOrderSuccess = async () => {
             <Text className="text-red-500">No slots available (Outlet Closed)</Text>
           ) : (
       (showAllSlots ? timeSlots : timeSlots.slice(0, 9)).map((slot) => {
-        const isSelected = selectedTime === slot.time;
+        // const isSelected = selectedTime === slot.time;
+
+        const isSelected =
+  selectedTime === `${slot.startTime}-${slot.endTime}`;
 
         const remaining = slot.remaining ?? 0;
       const limit = slot.limit ?? 10;
@@ -371,7 +402,7 @@ borderColorClass = 'border-red-500/30';
             disabled={isFull}
             onPress={() => {
               hapticFeedback.selection();
-              setSelectedTime(slot.time);
+  setSelectedTime(`${slot.startTime}-${slot.endTime}`);
             }}
             activeOpacity={0.8}
             className={`w-[30%] h-16 rounded-xl items-center justify-center border relative overflow-hidden ${
@@ -393,7 +424,11 @@ borderColorClass = 'border-red-500/30';
             : 'text-white'
         }`}
       >
-        {slot.time}
+        {/* {slot.time} */}
+
+        {slot.startTime && slot.endTime
+    ? `${slot.startTime} - ${slot.endTime}`
+    : slot.time}
       </Text>
 
 
@@ -476,10 +511,16 @@ borderColorClass = 'border-red-500/30';
         <View className="gap-3 mb-8">
           {/* COD Option (Prioritized) */}
           <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.selection();
-              setPaymentMethod('COD');
-            }}
+           onPress={() => {
+  hapticFeedback.selection();
+
+  // If a slot is selected → show alert
+  if (selectedTime) {
+    setShowCodAlert(true);
+  } else {
+    setPaymentMethod('COD');
+  }
+}}
             activeOpacity={0.8}
             className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'COD'
               ? 'bg-[#1A1A1A] border-[#F59E0B]'
@@ -590,6 +631,43 @@ borderColorClass = 'border-red-500/30';
           </View>
         )}
       </View>
+
+<CustomAlertModal
+  visible={showCodAlert}
+  type="warning"
+  title="Confirm COD Timing"
+ message={
+  (() => {
+    const nextSlot = getNextSlot();
+
+    return nextSlot
+      ? `You are choosing Cash on Delivery. Your selected slot (${selectedTime}) will be used for PAYMENT. Pickup will be scheduled in the NEXT slot (${nextSlot.startTime} - ${nextSlot.endTime}). Do you want to continue with COD or switch to Prepaid?`
+      : `You are choosing Cash on Delivery. Your selected slot (${selectedTime}) will be used for PAYMENT. No further pickup slots are available. Please switch to Prepaid or choose an earlier slot.`;
+  })()
+}
+  onClose={() => setShowCodAlert(false)}
+  buttons={[
+    {
+      text: 'Switch to Prepaid',
+      style: 'cancel',
+      onPress: () => {
+        setPaymentMethod('Prepaid');
+      },
+    },
+    {
+      text: 'Continue COD',
+      style: 'destructive',
+      onPress: () => {
+        setPaymentMethod('COD');
+      },
+    },
+  ]}
+/>
+
+      
     </Layout >
+
+
+
   );
 }

@@ -118,7 +118,9 @@ const insets = useSafeAreaInsets();
     setRefreshing(false);
   }, [refreshApp]);
 
-  const campusOutlets = outlets.filter((o) => o.campus === selectedCampus);
+  // const campusOutlets = outlets.filter((o) => o.campus === selectedCampus);
+
+  const campusOutlets = outlets;
 
   const chevronRotation = useSharedValue(0);
   const scrollY = useSharedValue(0);
