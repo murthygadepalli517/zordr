@@ -350,6 +350,96 @@ const handleOrderSuccess = async () => {
           </View>
         </View>
 
+
+           {/* SECTION 4: PAYMENT METHOD */}
+        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
+          Payment Method
+        </Text>
+
+        <View className="gap-3 mb-8">
+          {/* COD Option (Prioritized) */}
+          <TouchableOpacity
+           onPress={() => {
+  hapticFeedback.selection();
+
+    setShowCodAlert(true);
+
+
+  // If a slot is selected → show alert
+  // if (selectedTime) {
+  //   setShowCodAlert(true);
+  // } else {
+  //   setPaymentMethod('COD');
+  // }
+}}
+            activeOpacity={0.8}
+            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'COD'
+              ? 'bg-[#1A1A1A] border-[#F59E0B]'
+              : 'bg-[#1A1A1A] border-white/5'
+              }`}
+          >
+            <View className="flex-row items-center gap-4">
+              <View
+                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'COD' ? 'bg-[#F59E0B]/20' : 'bg-white/5'
+                  }`}
+              >
+                <Wallet size={24} color={paymentMethod === 'COD' ? '#F59E0B' : '#6B7280'} />
+              </View>
+              <View>
+                <Text
+                  className={`text-lg font-bold ${paymentMethod === 'COD' ? 'text-white' : 'text-gray-400'}`}
+                >
+                  Pay at Counter (COD)
+                </Text>
+                <Text className="text-gray-500 text-xs">Cash or UPI at Outlet</Text>
+              </View>
+            </View>
+            {paymentMethod === 'COD' && (
+              <View className="w-6 h-6 rounded-full bg-[#F59E0B] items-center justify-center">
+                <View className="w-2.5 h-2.5 rounded-full bg-black" />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Prepaid Option */}
+          <TouchableOpacity
+            onPress={() => {
+              hapticFeedback.selection();
+              setPaymentMethod('Prepaid');
+            }}
+            activeOpacity={0.8}
+            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'Prepaid'
+              ? 'bg-[#1A1A1A] border-[#10B981]'
+              : 'bg-[#1A1A1A] border-white/5'
+              }`}
+          >
+            <View className="flex-row items-center gap-4">
+              <View
+                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'Prepaid' ? 'bg-[#10B981]/20' : 'bg-white/5'
+                  }`}
+              >
+                <ShieldCheck
+                  size={24}
+                  color={paymentMethod === 'Prepaid' ? '#10B981' : '#6B7280'}
+                />
+              </View>
+              <View>
+                <Text
+                  className={`text-lg font-bold ${paymentMethod === 'Prepaid' ? 'text-white' : 'text-gray-400'}`}
+                >
+                  Pay Online (Prepaid)
+                </Text>
+                <Text className="text-gray-500 text-xs">UPI, Cards, Netbanking</Text>
+              </View>
+            </View>
+            {paymentMethod === 'Prepaid' && (
+              <View className="w-6 h-6 rounded-full bg-[#10B981] items-center justify-center">
+                <View className="w-2.5 h-2.5 rounded-full bg-black" />
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {/* SECTION 2: TIME SELECTOR */}
         <View className="flex-row justify-between items-end mb-3 ml-1">
           <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -503,91 +593,7 @@ borderColorClass = 'border-red-500/30';
           </TouchableOpacity>
         )}
 
-        {/* SECTION 4: PAYMENT METHOD */}
-        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-          Payment Method
-        </Text>
-
-        <View className="gap-3 mb-8">
-          {/* COD Option (Prioritized) */}
-          <TouchableOpacity
-           onPress={() => {
-  hapticFeedback.selection();
-
-  // If a slot is selected → show alert
-  if (selectedTime) {
-    setShowCodAlert(true);
-  } else {
-    setPaymentMethod('COD');
-  }
-}}
-            activeOpacity={0.8}
-            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'COD'
-              ? 'bg-[#1A1A1A] border-[#F59E0B]'
-              : 'bg-[#1A1A1A] border-white/5'
-              }`}
-          >
-            <View className="flex-row items-center gap-4">
-              <View
-                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'COD' ? 'bg-[#F59E0B]/20' : 'bg-white/5'
-                  }`}
-              >
-                <Wallet size={24} color={paymentMethod === 'COD' ? '#F59E0B' : '#6B7280'} />
-              </View>
-              <View>
-                <Text
-                  className={`text-lg font-bold ${paymentMethod === 'COD' ? 'text-white' : 'text-gray-400'}`}
-                >
-                  Pay at Counter (COD)
-                </Text>
-                <Text className="text-gray-500 text-xs">Cash or UPI at Outlet</Text>
-              </View>
-            </View>
-            {paymentMethod === 'COD' && (
-              <View className="w-6 h-6 rounded-full bg-[#F59E0B] items-center justify-center">
-                <View className="w-2.5 h-2.5 rounded-full bg-black" />
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Prepaid Option */}
-          <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.selection();
-              setPaymentMethod('Prepaid');
-            }}
-            activeOpacity={0.8}
-            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'Prepaid'
-              ? 'bg-[#1A1A1A] border-[#10B981]'
-              : 'bg-[#1A1A1A] border-white/5'
-              }`}
-          >
-            <View className="flex-row items-center gap-4">
-              <View
-                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'Prepaid' ? 'bg-[#10B981]/20' : 'bg-white/5'
-                  }`}
-              >
-                <ShieldCheck
-                  size={24}
-                  color={paymentMethod === 'Prepaid' ? '#10B981' : '#6B7280'}
-                />
-              </View>
-              <View>
-                <Text
-                  className={`text-lg font-bold ${paymentMethod === 'Prepaid' ? 'text-white' : 'text-gray-400'}`}
-                >
-                  Pay Online (Prepaid)
-                </Text>
-                <Text className="text-gray-500 text-xs">UPI, Cards, Netbanking</Text>
-              </View>
-            </View>
-            {paymentMethod === 'Prepaid' && (
-              <View className="w-6 h-6 rounded-full bg-[#10B981] items-center justify-center">
-                <View className="w-2.5 h-2.5 rounded-full bg-black" />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+     
 
         {/* BILL SUMMARY */}
         <View className="mb-8 p-4 bg-white/5 rounded-2xl border border-white/5">

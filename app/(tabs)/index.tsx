@@ -100,7 +100,11 @@ const { user } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  
+  const [banners, setBanners] = useState<Banner[]>([]);
+const [bannerIndex, setBannerIndex] = useState(0);
+
+
+const bannerScrollRef = useRef<ScrollView | null>(null);
 
   const [isOutletDropdownOpen, setIsOutletDropdownOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -118,6 +122,20 @@ const insets = useSafeAreaInsets();
     setRefreshing(false);
   }, [refreshApp]);
 
+  type Banner = {
+  id: string;
+  title: string | null;
+  imageUrl: string;
+  targetUrl: string | null;
+  type: string;
+  isActive: boolean;
+  order: number;
+  link: string | null;
+  image: string;
+  bannerType: string;
+  bannerTitle: string | null;
+};
+
   // const campusOutlets = outlets.filter((o) => o.campus === selectedCampus);
 
   const campusOutlets = outlets;
@@ -134,6 +152,22 @@ const insets = useSafeAreaInsets();
     scrollY.value = event.contentOffset.y;
   });
 
+
+  const fetchBanners = async () => {
+  try {
+    const res = await fetch(
+      'https://zordr-backend.onrender.com/api/banners?type=home'
+    );
+    const json = await res.json();
+
+    if (json.success) {
+      setBanners(json.data || []);
+    }
+  } catch (err) {
+    console.log('Banner fetch error:', err);
+  }
+};
+
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: interpolate(scrollY.value, [0, 60], [1, 0], Extrapolation.CLAMP),
@@ -148,6 +182,28 @@ const insets = useSafeAreaInsets();
       Keyboard.dismiss();
     }, [])
   );
+
+  useEffect(() => {
+  fetchBanners();
+}, []);
+
+
+useEffect(() => {
+  if (!banners.length) return;
+
+  const interval = setInterval(() => {
+    const nextIndex = (bannerIndex + 1) % banners.length;
+
+    bannerScrollRef.current?.scrollTo({
+      x: nextIndex * width,
+      animated: true,
+    });
+
+    setBannerIndex(nextIndex);
+  }, 3000);
+
+  return () => clearInterval(interval);
+}, [bannerIndex, banners]);
 
  useEffect(() => {
   if (campusOutlets.length === 0) return;
@@ -538,6 +594,55 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                       ))}
                     </ScrollView>
                   </View>
+
+
+
+                  {banners.length > 0 && (
+  <View className="mt-3">
+    <ScrollView
+      ref={bannerScrollRef}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      onMomentumScrollEnd={(e) => {
+        const index = Math.round(
+          e.nativeEvent.contentOffset.x / width
+        );
+        setBannerIndex(index);
+      }}
+    >
+      {banners.map((banner) => (
+        <TouchableOpacity
+          key={banner.id}
+          activeOpacity={0.9}
+        >
+          <Image
+            source={{ uri: banner.imageUrl || banner.image }}
+            style={{
+              width: width,
+              height: 160,
+            }}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+
+    {/* Pagination dots */}
+    <View className="flex-row justify-center mt-2 gap-1">
+      {banners.map((_, i) => (
+        <View
+          key={i}
+          className={`h-1.5 rounded-full ${
+            i === bannerIndex
+              ? 'w-4 bg-primary'
+              : 'w-1.5 bg-white/30'
+          }`}
+        />
+      ))}
+    </View>
+  </View>
+)}
 
                   {/* ACTIVE ORDERS (Dynamic Island Style) */}
                   {activeOrders.length > 0 && (
@@ -933,3 +1038,4 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
     </View>
   );
 }
+

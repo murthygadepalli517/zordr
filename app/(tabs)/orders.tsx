@@ -45,6 +45,10 @@ const [ratings, setRatings] = useState<{
 }>({});
 
 
+const [rescheduleOrderId, setRescheduleOrderId] = useState<string | null>(null);
+const [confirmHotFood, setConfirmHotFood] = useState(false);
+const [loadingReschedule, setLoadingReschedule] = useState(false);
+
   // State for Custom Cancel Modal
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 const { authToken } = useStore(); // Get the stored token dynamically
@@ -285,6 +289,77 @@ useEffect(() => {
 //   }
 // };
 
+
+const rescheduleOrder = async (orderId: string) => {
+  if (!authToken) {
+    console.warn("❌ No auth token found");
+    return;
+  }
+
+  console.log("========== RESCHEDULE API DEBUG START ==========");
+  console.log("📦 Order ID:", orderId);
+
+  const url = `https://zordr-backend.onrender.com/api/orders/${orderId}/reschedule`;
+
+  const requestBody = {
+    confirmHotFood: true,
+  };
+
+  const headers = {
+    Authorization: `Bearer ${authToken}`,
+    "Content-Type": "application/json",
+  };
+
+  console.log("🌐 URL:", url);
+  console.log("📤 METHOD: POST");
+  console.log("📤 HEADERS:", headers);
+  console.log("📤 BODY:", requestBody);
+
+  try {
+    setLoadingReschedule(true);
+
+    const res = await fetch(url, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log("📥 STATUS:", res.status);
+    console.log("📥 OK?:", res.ok);
+
+    const rawText = await res.text();
+    console.log("📥 RAW RESPONSE:", rawText);
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+      console.log("📥 JSON PARSED:", data);
+    } catch (err) {
+      console.warn("⚠️ Response is not valid JSON");
+    }
+
+    if (res.ok && data?.success) {
+      console.log("✅ Reschedule SUCCESS");
+
+      hapticFeedback.success();
+      alert("Order moved to next slot successfully!");
+      setRescheduleOrderId(null);
+      setConfirmHotFood(false);
+    } else {
+      console.warn("❌ Reschedule FAILED:", data);
+
+      hapticFeedback.error();
+      alert(data?.message || "Failed to reschedule order");
+    }
+  } catch (err) {
+    console.error("🚨 FETCH ERROR:", err);
+    hapticFeedback.error();
+    alert("Network error while rescheduling");
+  } finally {
+    setLoadingReschedule(false);
+    console.log("========== RESCHEDULE API DEBUG END ==========");
+  }
+};
 
 const fetchReview = async (orderId: string, token: string) => {
   console.log('--- fetchReview START ---');
@@ -686,17 +761,12 @@ const renderRatingSection = (order: Order) => {
                     )}
 
                     <TouchableOpacity
-                      onPress={() =>
-                        router.push({
-                          pathname: '/order-confirmation',
-                          params: { orderId: order.id },
-                        })
-                      }
-                      className="flex-[2] py-3 rounded-xl bg-[#FF5500] flex-row items-center justify-center gap-2"
-                    >
-                      <Text className="text-white font-bold text-xs">Track Status</Text>
-                      <ArrowRight size={14} color="white" />
-                    </TouchableOpacity>
+  onPress={() => setRescheduleOrderId(order.id)}
+  className="flex-[2] py-3 rounded-xl bg-[#FF5500] flex-row items-center justify-center gap-2"
+>
+  <Text className="text-white font-bold text-xs">Move to Next Slot</Text>
+  <ArrowRight size={14} color="white" />
+</TouchableOpacity>
                   </View>
                 )}
 
@@ -806,6 +876,78 @@ const renderRatingSection = (order: Order) => {
             disabled={!selectedCancelReason}
           >
             <Text className="text-white font-semibold">Cancel Order</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    )}
+  </View>
+</Modal>
+
+
+
+<Modal
+  transparent
+  visible={!!rescheduleOrderId}
+  animationType="fade"
+  statusBarTranslucent
+>
+  <View className="flex-1 bg-black/80 justify-center items-center p-6">
+    {!!rescheduleOrderId && (
+      <Animated.View
+        entering={ZoomIn.duration(200)}
+        exiting={ZoomOut.duration(150)}
+        className="w-full bg-[#171717] rounded-3xl p-6 border border-white/10"
+      >
+        <Text className="text-white text-xl font-bold text-center mb-4">
+          Move to Next Slot
+        </Text>
+
+        <Text className="text-gray-400 text-sm text-center mb-6">
+          Your food may not be hot. Do you want to continue?
+        </Text>
+
+        {/* Checkbox */}
+        <TouchableOpacity
+          onPress={() => setConfirmHotFood(!confirmHotFood)}
+          className="flex-row items-center mb-6"
+        >
+          <View
+            className={`w-5 h-5 rounded border mr-3 items-center justify-center ${
+              confirmHotFood
+                ? "bg-[#FF5500] border-[#FF5500]"
+                : "border-gray-500"
+            }`}
+          >
+            {confirmHotFood && <Text className="text-white text-xs">✓</Text>}
+          </View>
+
+          <Text className="text-white text-sm flex-1">
+            I understand food may not be hot
+          </Text>
+        </TouchableOpacity>
+
+        {/* Buttons */}
+        <View className="flex-row gap-4">
+          <TouchableOpacity
+            onPress={() => {
+              setRescheduleOrderId(null);
+              setConfirmHotFood(false);
+            }}
+            className="flex-1 py-4 rounded-2xl bg-white/10 items-center"
+          >
+            <Text className="text-white font-semibold">Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            disabled={!confirmHotFood || loadingReschedule}
+            onPress={() => rescheduleOrder(rescheduleOrderId!)}
+            className={`flex-1 py-4 rounded-2xl items-center ${
+              confirmHotFood ? "bg-[#FF5500]" : "bg-gray-600"
+            }`}
+          >
+            <Text className="text-white font-semibold">
+              {loadingReschedule ? "Processing..." : "Confirm"}
+            </Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
