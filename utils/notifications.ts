@@ -55,19 +55,32 @@ export async function registerForPushNotificationsAsync() {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
 
-      token = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId,
-        })
-      ).data;
-
+      const tokenResult = await Notifications.getExpoPushTokenAsync({
+        projectId,
+      });
+      token = tokenResult.data;
       console.log('📲 Expo Push Token:', token);
+
+      // Also get the native device token (FCM for Android, APNS for iOS)
+      try {
+        const deviceTokenResult = await Notifications.getDevicePushTokenAsync();
+        const deviceToken = deviceTokenResult.data;
+        console.log('📲 Native Device Token:', deviceToken);
+        return { expoToken: token, deviceToken };
+      } catch (nativeError: any) {
+        console.log('⚠️ Native token error (FCM/APNS):', nativeError.message);
+        if (Platform.OS === 'android' && nativeError.message.includes('FirebaseApp is not initialized')) {
+          console.warn('❌ Firebase is not initialized. If you just added google-services.json, please run: npx expo run:android --clean');
+        }
+        // Return only expoToken if native token fails
+        return { expoToken: token, deviceToken: null };
+      }
     } catch (e: any) {
-      console.log('Error getting push token:', e);
+      console.log('❌ Error getting push token:', e);
     }
   } else {
     console.log('Must use physical device for Push Notifications');
   }
 
-  return token;
+  return null;
 }

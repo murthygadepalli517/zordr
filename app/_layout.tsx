@@ -1,18 +1,24 @@
 import '../global.css';
 import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StoreProvider } from '../context/StoreContext';
 import { AlertProvider } from '../context/AlertContext';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { View, AppState, AppStateStatus, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { registerForPushNotificationsAsync } from '../utils/notifications';
 import { AtmosphericBackground } from '../components/ui/AtmosphericBackground';
 
 const queryClient = new QueryClient();
+
+function onAppStateChange(status: AppStateStatus) {
+  if (Platform.OS !== 'web') {
+    focusManager.setFocused(status === 'active');
+  }
+}
 
 // Create a Transparent Theme based on DarkTheme
 const TransparentTheme = {
@@ -27,6 +33,8 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
+    const appStateSubscription = AppState.addEventListener('change', onAppStateChange);
+
     // 1. Register for tokens immediately on launch
     registerForPushNotificationsAsync();
 
@@ -60,6 +68,7 @@ export default function RootLayout() {
     return () => {
       if (subscription1) subscription1.remove();
       if (subscription2) subscription2.remove();
+      appStateSubscription.remove();
     };
   }, []);
 

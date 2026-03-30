@@ -106,6 +106,8 @@ export interface MenuItem {
   outletName: string;
   isReadyToPick?: boolean;
   prepTime?: number;
+  inventoryCount?: number;
+  dailyLimit?: number;
 }
 
 export interface Notification {
@@ -191,9 +193,8 @@ interface StoreContextType {
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
-const isLoggingOutRef = React.useRef(false);
-
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isLoggingOutRef = React.useRef(false);
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
 
@@ -226,13 +227,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     loadAuthData();
 
+    // 🔒 Sync Push Token on launch if authenticated
+    const syncToken = async () => {
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        const tokenResult = await registerForPushNotificationsAsync();
+        if (tokenResult) {
+          apiFetch(
+            'user/push-token',
+            {
+              method: 'POST',
+              body: {
+                pushToken: tokenResult.deviceToken || tokenResult.expoToken,
+                expoPushToken: tokenResult.expoToken,
+                deviceToken: tokenResult.deviceToken,
+              },
+            },
+            token
+          ).catch((err) => console.log('Token sync failed', err));
+        }
+      }
+    };
+    syncToken();
+
     // 🔒 Listen for 401 Unauthorized events from API
     const handleUnauthorized = () => {
-  if (isLoggingOutRef.current) return; // 🚀 prevent double logout
-
-  console.log('🔒 Session expired. Logging out.');
-  logout();
-};
+      if (isLoggingOutRef.current) return; // 🚀 prevent double logout
+      console.log('🔒 Session expired. Logging out.');
+      logout();
+    };
 
     // Lazy import or robust import
     import('../utils/events').then(({ globalEvents }) => {
@@ -386,8 +409,19 @@ const {
   // --- 3. MUTATIONS (With Optimistic Updates) ---
 
   const registerPushTokenMutation = useMutation({
-    mutationFn: (token: string) =>
-      apiFetch('user/push-token', { method: 'POST', body: { pushToken: token } }, authToken || ''),
+    mutationFn: (tokenData: { expoToken: string; deviceToken: string }) =>
+      apiFetch(
+        'user/push-token',
+        {
+          method: 'POST',
+          body: {
+            pushToken: tokenData.deviceToken || tokenData.expoToken,
+            expoPushToken: tokenData.expoToken, // keep for backward compatibility or extra info
+            deviceToken: tokenData.deviceToken,
+          },
+        },
+        authToken || ''
+      ),
   });
 
   const loginMutation = async (data: { user: UserProfile; token: string }) => {
@@ -406,8 +440,8 @@ const {
       await AsyncStorage.setItem('authToken', data.token);
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
 
-      const pushToken = await registerForPushNotificationsAsync();
-      if (pushToken) registerPushTokenMutation.mutate(pushToken);
+      const tokenResult = await registerForPushNotificationsAsync();
+      if (tokenResult) registerPushTokenMutation.mutate(tokenResult);
 
       queryClient.invalidateQueries();
     } catch (error) {
@@ -613,6 +647,23 @@ const updateUserMutation = useMutation({
   const addToCart = React.useCallback(async (item: any, qty: number, skipOutletCheck = false) => {
     if (!authToken) return;
 
+    // Check for daily limit
+    const maxAvailable = (item.dailyLimit !== undefined && item.inventoryCount !== undefined) 
+      ? (item.dailyLimit - item.inventoryCount) 
+      : Infinity;
+    
+    // Find current quantity in cart
+    const currentQtyInCart = cart.find((i: CartItem) => i.id === item.id)?.quantity || 0;
+    
+    if (currentQtyInCart + qty > maxAvailable) {
+      showAlert({
+        title: 'Limit Reached',
+        message: `Only ${maxAvailable} units of ${item.name} are available today.`,
+        type: 'error',
+      });
+      return;
+    }
+
     // Check for different outlet
     if (!skipOutletCheck && cart.length > 0 && item.outletId && cart[0].outletId !== item.outletId) {
       showAlert({
@@ -641,52 +692,69 @@ const updateUserMutation = useMutation({
     const item = cart.find((i: CartItem) => i.id === id);
     if (!item) return;
 
+    if (delta > 0) {
+      // Find item in menuItems to check limit
+      const menuItem = menuItems.find((m: MenuItem) => m.id === id);
+      if (menuItem && menuItem.dailyLimit !== undefined && menuItem.inventoryCount !== undefined) {
+        const maxAvailable = menuItem.dailyLimit - menuItem.inventoryCount;
+        if (item.quantity + delta > maxAvailable) {
+          showAlert({
+            title: 'Limit Reached',
+            message: `Only ${maxAvailable} units of ${item.name} are available today.`,
+            type: 'error',
+          });
+          return;
+        }
+      }
+    }
+
     const newQty = item.quantity + delta;
     if (newQty <= 0) removeFromCartMutation.mutate(id);
     else updateQtyMutation.mutate({ itemId: id, quantity: newQty });
-  }, [cart, removeFromCartMutation, updateQtyMutation]);
+  }, [cart, menuItems, removeFromCartMutation, updateQtyMutation, showAlert]);
 
-  const placeOrder = React.useCallback(async (
-    time: string,
-    paymentMethod: string,
-    specialInstructions?: string,
+  const placeOrder = React.useCallback(
+    async (
+      time: string,
+      paymentMethod: string,
+      specialInstructions?: string,
       couponCode?: string,
-        orderType?: 'Dine In' | 'Takeaway'
+      orderType?: 'Dine In' | 'Takeaway'
+    ): Promise<Order> => {
+      if (!authToken) throw new Error('User not authenticated');
+      try {
+        const body: any = {
+          items: cart.map((item: CartItem) => ({
+            id: item.id,
+            quantity: item.quantity,
+          })),
+          pickupSlot: time,
+          pickupTime: time,
+          outletId: cart[0]?.outletId,
+          paymentMethod: paymentMethod,
+          specialInstructions: specialInstructions,
+          orderType: orderType === 'Dine In' ? 'Dine In' : 'Takeaway',
+        };
 
+        // ✅ Only attach coupon if it exists
+        if (couponCode) {
+          body.couponCode = couponCode;
+        }
 
-  ): Promise<Order> => {
-    if (!authToken) throw new Error('User not authenticated');
-    try {
-  const body: any = {
-  items: cart.map((item: CartItem) => ({
-    id: item.id,
-    quantity: item.quantity,
-  })),
-  pickupSlot: time,
-  pickupTime: time,
-  outletId: cart[0]?.outletId,
-  paymentMethod: paymentMethod,
-  specialInstructions: specialInstructions,
-orderType: orderType === 'Dine In' ? 'Dine In' : 'Takeaway',
-};
+        const result = await placeOrderMutation.mutateAsync(body);
 
-// ✅ Only attach coupon if it exists
-if (couponCode) {
-  body.couponCode = couponCode;
-}
-
-const result = await placeOrderMutation.mutateAsync(body);
-
-      return result as Order;
-    } catch (error: any) {
-      showAlert({
-        title: 'Order Failed',
-        message: error.message || 'Something went wrong while placing your order.',
-        type: 'error',
-      });
-      throw error;
-    }
-  }, [authToken, placeOrderMutation, cart, showAlert]);
+        return result as Order;
+      } catch (error: any) {
+        showAlert({
+          title: 'Order Failed',
+          message: error.message || 'Something went wrong while placing your order.',
+          type: 'error',
+        });
+        throw error;
+      }
+    },
+    [authToken, placeOrderMutation, cart, showAlert]
+  );
 
   const searchGlobalItems = async (query: string) => {
     if (!authToken) return [];

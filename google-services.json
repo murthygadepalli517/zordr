@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "669950563328",
+    "project_id": "zordr-app",
+    "storage_bucket": "zordr-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:669950563328:android:c2253fc12699bd06e634e5",
+        "android_client_info": {
+          "package_name": "com.android.zordr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhtM6RkRTP2uXgeVAa6BIPp6jBl98aUOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

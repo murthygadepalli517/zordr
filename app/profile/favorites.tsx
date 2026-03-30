@@ -64,6 +64,12 @@ export default function FavoritesScreen() {
                 const inCart = !!cartItem;
                 const quantity = cartItem?.quantity || 0;
 
+                const isSoldOut = 
+                  (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.inventoryCount >= item.dailyLimit && item.dailyLimit > 0) ||
+                  (item.dailyLimit !== undefined && item.inventoryCount !== undefined && (item.dailyLimit - item.inventoryCount) <= 0 && item.dailyLimit > 0);
+                const maxAvailable = (item.dailyLimit || 0) - (item.inventoryCount || 0);
+                const canIncrement = item.dailyLimit === undefined || quantity < maxAvailable;
+
                 return (
                   <Animated.View
                     key={item.id}
@@ -77,9 +83,16 @@ export default function FavoritesScreen() {
                       <View className="h-36 w-full relative bg-gray-900">
                         <Image
                           source={{ uri: item.image }}
-                          className="w-full h-full"
+                          className={`w-full h-full ${isSoldOut ? 'opacity-40' : ''}`}
                           resizeMode="cover"
                         />
+                        {isSoldOut && (
+                          <View className="absolute inset-0 items-center justify-center">
+                            <View className="bg-black/70 px-2 py-1 rounded-md border border-white/20">
+                              <Text className="text-[10px] text-white font-black">SOLD OUT</Text>
+                            </View>
+                          </View>
+                        )}
 
                         <TouchableOpacity
                           onPress={(e) => {
@@ -124,14 +137,16 @@ export default function FavoritesScreen() {
                           {!inCart ? (
                             <TouchableOpacity
                               onPress={async (e) => {
+                                if (isSoldOut) return;
                                 e.stopPropagation();
                                 hapticFeedback.selection();
                                 await addToCart(item, 1);
                               }}
-                              className="bg-primary px-4 py-2 rounded-full"
+                              disabled={isSoldOut}
+                              className={`px-4 py-2 rounded-full ${isSoldOut ? 'bg-gray-700' : 'bg-primary'}`}
                             >
                               <Text className="text-white text-xs font-bold">
-                                ADD
+                                {isSoldOut ? 'SOLD OUT' : 'ADD'}
                               </Text>
                             </TouchableOpacity>
                           ) : (
@@ -159,46 +174,46 @@ export default function FavoritesScreen() {
                             //       hapticFeedback.light();
                             //       updateQuantity(item.id, 1);
                             //     }}
-                            //     className="w-7 h-7 items-center justify-center"
-                            //   >
-                            //     <Plus size={14} color="white" />
-                            //   </TouchableOpacity>
-                            // </View>
-
-                           <View
-                          className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
-                          style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
-                        >
-  
-                              {/* MINUS */}
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  hapticFeedback.light();
-                                  updateQuantity(item.id, -1); // SAME LOGIC
-                                }}
-                              >
-                                <Minus size={16} color="white" />
-                              </TouchableOpacity>
-
-                              {/* QUANTITY */}
-                              <Text className="font-bold text-sm w-4 text-center text-white">
-                                {quantity}
-                              </Text>
-
-                              {/* PLUS */}
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  hapticFeedback.light();
-                                  updateQuantity(item.id, 1); // SAME LOGIC
-                                }}
-                              >
-                                <Plus size={16} color="white" />
-                              </TouchableOpacity>
-
-                            </View>
-                                                      )}
+                            <View
+                              className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
+                              style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
+                            >
+      
+                                  {/* MINUS */}
+                                  <TouchableOpacity
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      hapticFeedback.light();
+                                      updateQuantity(item.id, -1);
+                                    }}
+                                  >
+                                    {quantity === 1 ? (
+                                      <Minus size={16} color="#ef4444" />
+                                    ) : (
+                                      <Minus size={16} color="white" />
+                                    )}
+                                  </TouchableOpacity>
+    
+                                  {/* QUANTITY */}
+                                  <Text className="font-bold text-sm w-4 text-center text-white">
+                                    {quantity}
+                                  </Text>
+    
+                                  {/* PLUS */}
+                                  <TouchableOpacity
+                                    onPress={(e) => {
+                                      if (!canIncrement) return;
+                                      e.stopPropagation();
+                                      hapticFeedback.light();
+                                      updateQuantity(item.id, 1);
+                                    }}
+                                    disabled={!canIncrement}
+                                  >
+                                    <Plus size={16} color={canIncrement ? "white" : "#4b5563"} />
+                                  </TouchableOpacity>
+    
+                                </View>
+                          )}
                         </View>
                       </View>
                     </View>

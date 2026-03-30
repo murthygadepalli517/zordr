@@ -54,7 +54,6 @@ import { Text } from '../../components/ui/text';
 import ItemDetailsDrawer from '../../components/ItemDetailsDrawer';
 import { AnimatedItem } from '../../components/AnimatedItem';
 import { ReadyToPickRibbon } from '../../components/ReadyToPickRibbon';
-import { usePrepTime } from '../../components/PrepTimeProgressBar';
 import { ActiveOrderCard } from '../../components/ActiveOrderCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -708,42 +707,61 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                           onScrollEndDrag={onDealsScrollEndDrag}
                           onMomentumScrollEnd={onDealsMomentumScrollEnd}
                         >
-                          {loopedDeals.map((item, idx) => (
-                            <TouchableOpacity
-                              key={`${item.id}-${idx}`}
-                              className="w-[200px] bg-[#1A1A1A] rounded-xl overflow-hidden border border-white/5"
-                              onPress={() => openItemDetails(item)}
-                              activeOpacity={0.8}
-                            >
-                              <View className="absolute top-2 left-2 bg-red-600 px-2 py-1 rounded z-10">
-                                <Text className="text-white text-[10px] font-bold">
-                                  {item.discount}
-                                </Text>
-                              </View>
-                              <Image
-                                source={{ uri: item.image }}
-                                className="w-full h-24"
-                                resizeMode="cover"
-                              />
-                              <View className="p-3">
-                                <Text
-                                  className="text-white font-bold text-sm mb-1"
-                                  numberOfLines={1}
-                                >
-                                  {item.name}
-                                </Text>
-                                <Text className="text-gray-400 text-[10px] mb-2">
-                                  {item.outletName}
-                                </Text>
-                                <View className="flex-row items-center gap-2">
-                                  <Text className="text-primary font-bold">₹{item.price}</Text>
-                                  <Text className="text-gray-600 text-[10px] line-through">
-                                    ₹{item.originalPrice}
-                                  </Text>
+                          {loopedDeals.map((item, idx) => {
+                            const isSoldOut = 
+                              (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.inventoryCount >= item.dailyLimit && item.dailyLimit > 0) ||
+                              (item.dailyLimit !== undefined && item.inventoryCount !== undefined && (item.dailyLimit - item.inventoryCount) <= 0 && item.dailyLimit > 0);
+                            
+                            return (
+                              <TouchableOpacity
+                                key={`${item.id}-${idx}`}
+                                className={`w-[200px] bg-[#1A1A1A] rounded-xl overflow-hidden border border-white/5 ${isSoldOut ? 'opacity-80' : ''}`}
+                                onPress={() => openItemDetails(item)}
+                                activeOpacity={0.8}
+                              >
+                                {item.discount && (
+                                  <View className="absolute top-2 left-2 bg-red-600 px-2 py-1 rounded z-10">
+                                    <Text className="text-white text-[10px] font-bold">
+                                      {item.discount}
+                                    </Text>
+                                  </View>
+                                )}
+                                <View className="relative">
+                                  <Image
+                                    source={{ uri: item.image }}
+                                    className={`w-full h-24 ${isSoldOut ? 'opacity-40' : ''}`}
+                                    resizeMode="cover"
+                                  />
+                                  {isSoldOut && (
+                                    <View className="absolute inset-0 items-center justify-center">
+                                      <View className="bg-black/70 px-2 py-1 rounded-md border border-white/20">
+                                        <Text className="text-[10px] text-white font-black">SOLD OUT</Text>
+                                      </View>
+                                    </View>
+                                  )}
                                 </View>
-                              </View>
-                            </TouchableOpacity>
-                          ))}
+                                <View className="p-3">
+                                  <Text
+                                    className="text-white font-bold text-sm mb-1"
+                                    numberOfLines={1}
+                                  >
+                                    {item.name}
+                                  </Text>
+                                  <Text className="text-gray-400 text-[10px] mb-2">
+                                    {item.outletName}
+                                  </Text>
+                                  <View className="flex-row items-center gap-2">
+                                    <Text className="text-primary font-bold">₹{item.price}</Text>
+                                    {item.originalPrice && (
+                                      <Text className="text-gray-600 text-[10px] line-through">
+                                        ₹{item.originalPrice}
+                                      </Text>
+                                    )}
+                                  </View>
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     )}
@@ -772,6 +790,13 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                           const cartItem = cart.find((c) => c.id === item.id);
                           const inCart = !!cartItem;
                           const quantity = cartItem?.quantity || 0;
+                          
+                          const isSoldOut = 
+                            (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.inventoryCount >= item.dailyLimit && item.dailyLimit > 0) ||
+                            (item.dailyLimit !== undefined && item.inventoryCount !== undefined && (item.dailyLimit - item.inventoryCount) <= 0 && item.dailyLimit > 0);
+                          const maxAvailable = (item.dailyLimit || 0) - (item.inventoryCount || 0);
+                          const canIncrement = quantity < maxAvailable || item.dailyLimit === undefined;
+
                           return (
                             <View key={item.id}>
                               <TouchableOpacity
@@ -795,22 +820,31 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                                   />
                                 </TouchableOpacity>
 
-                                <View>
-                                  <Image
-                                    source={{ uri: item.image }}
-                                    className="w-28 h-28 rounded-2xl bg-gray-800"
-                                  />
-                                  {isDifferentOutlet && (
-                                    <View className="absolute top-0 left-0 bg-primary px-2 py-1 rounded-tl-2xl rounded-br-lg z-10">
-                                      <Text className="text-[8px] text-white font-bold">
-                                        Others
-                                      </Text>
+                                  <View>
+                                    <View className="relative">
+                                      <Image
+                                        source={{ uri: item.image }}
+                                        className={`w-28 h-28 rounded-2xl bg-gray-800 ${isSoldOut ? 'opacity-40' : ''}`}
+                                      />
+                                      {isSoldOut && (
+                                        <View className="absolute inset-0 items-center justify-center">
+                                          <View className="bg-black/70 px-2 py-1 rounded-md border border-white/20">
+                                            <Text className="text-[10px] text-white font-black">SOLD OUT</Text>
+                                          </View>
+                                        </View>
+                                      )}
                                     </View>
-                                  )}
-                                  {item.isReadyToPick && (
-                                    <ReadyToPickRibbon isDifferentOutlet={isDifferentOutlet} />
-                                  )}
-                                </View>
+                                    {isDifferentOutlet && (
+                                      <View className="absolute top-0 left-0 bg-primary px-2 py-1 rounded-tl-2xl rounded-br-lg z-10">
+                                        <Text className="text-[8px] text-white font-bold">
+                                          Others
+                                        </Text>
+                                      </View>
+                                    )}
+                                    {item.isReadyToPick && (
+                                      <ReadyToPickRibbon isDifferentOutlet={isDifferentOutlet} />
+                                    )}
+                                  </View>
 
                                 <View className="flex-1 justify-between py-1">
                                   <View>
@@ -840,17 +874,19 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                                     </View>
 
               {!inCart ? (
-  <TouchableOpacity
-    onPress={async (e) => {
-      e.stopPropagation();
-      hapticFeedback.selection();
-      await addToCart(item, 1);
-    }}
-    className="bg-primary px-4 py-2 rounded-full"
-  >
-    <Text className="text-white text-xs font-bold">ADD</Text>
-  </TouchableOpacity>
-) : (
+                <TouchableOpacity
+                  onPress={async (e) => {
+                    if (isSoldOut) return;
+                    e.stopPropagation();
+                    hapticFeedback.selection();
+                    await addToCart(item, 1);
+                  }}
+                  disabled={isSoldOut}
+                  className={`${isSoldOut ? 'bg-gray-700' : 'bg-primary'} px-4 py-2 rounded-full`}
+                >
+                  <Text className="text-white text-xs font-bold">{isSoldOut ? 'SOLD OUT' : 'ADD'}</Text>
+                </TouchableOpacity>
+              ) : (
    <View
                             className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
                             style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
@@ -876,12 +912,14 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
 
     <TouchableOpacity
       onPress={(e) => {
+        if (!canIncrement) return;
         e.stopPropagation();
         hapticFeedback.light();
         updateQuantity(item.id, 1);
       }}
+      disabled={!canIncrement}
     >
-      <Plus size={16} color="white" />
+      <Plus size={16} color={canIncrement ? "white" : "#4b5563"} />
     </TouchableOpacity>
   </View>
 )}

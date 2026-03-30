@@ -1,69 +1,13 @@
 import React from 'react';
 import { View, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { Heart, Star, Plus, ShoppingBag } from 'lucide-react-native';
+import { Heart, Star, Plus, Minus, ShoppingBag } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStore } from '../../context/StoreContext';
+import { useStore, MenuItem } from '../../context/StoreContext';
 import { Text } from '../../components/ui/text';
 import { hapticFeedback } from '../../utils/haptics';
 
-// Mock Data for mapping IDs back to objects (In a real app, you'd fetch these or store full objects)
-const ALL_ITEMS = [
-  {
-    id: 1,
-    name: 'Egg Puff',
-    price: 25,
-    rating: 4.8,
-    category: 'Snacks',
-    outletName: 'Campus Bakery',
-    image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?q=80&w=1000',
-    desc: 'Hot and spicy bakery puff',
-  },
-  {
-    id: 2,
-    name: 'Masala Dosa',
-    price: 50,
-    rating: 4.7,
-    category: 'Breakfast',
-    outletName: 'Main Canteen',
-    image: 'https://images.unsplash.com/photo-1645177628172-a94c1f96e6db?q=80&w=1000',
-    desc: 'Crispy dosa',
-  },
-  {
-    id: 3,
-    name: 'Cold Coffee',
-    price: 60,
-    rating: 4.6,
-    category: 'Drinks',
-    outletName: 'Fresh Juice Bar',
-    image: 'https://images.unsplash.com/photo-1517701604599-bb29b5dd7359?q=80&w=1000',
-    desc: 'Thick chocolate',
-  },
-  {
-    id: 4,
-    name: 'Chicken Burger',
-    price: 220,
-    rating: 4.9,
-    category: 'Burgers',
-    outletName: 'Main Canteen',
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1000',
-    desc: 'Juicy grilled chicken',
-  },
-  {
-    id: 101,
-    name: 'Chicken Biryani Combo',
-    price: 180,
-    rating: 4.5,
-    outletName: 'Main Canteen',
-    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=1000',
-    desc: 'Hyderabadi style dum biryani',
-  },
-];
-
 export default function FavoritesScreen() {
-  const { favorites, toggleFavorite, addToCart } = useStore();
-
-  // Filter all items to find those in the favorites list
-  const favoriteItems = ALL_ITEMS.filter((item) => favorites.includes(item.id));
+  const { favoriteItems, toggleFavorite, addToCart, cart, updateQuantity } = useStore();
 
   const handleAddToCart = (item: any) => {
     hapticFeedback.medium();
@@ -81,49 +25,111 @@ export default function FavoritesScreen() {
         <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
           {favoriteItems.length > 0 ? (
             <View className="flex-row flex-wrap gap-4 justify-between">
-              {favoriteItems.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  className="w-[47%] bg-[#1A1A1A] rounded-2xl overflow-hidden border border-white/5 mb-4"
-                  onPress={() => handleAddToCart(item)}
-                >
-                  <View className="h-32 w-full relative">
-                    <Image
-                      source={{ uri: item.image }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
+              {favoriteItems.map((item: MenuItem) => {
+                const cartItem = cart.find((c) => c.id === item.id);
+                const inCart = !!cartItem;
+                const quantity = cartItem?.quantity || 0;
+                
+                const isSoldOut = 
+                  (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.inventoryCount >= item.dailyLimit && item.dailyLimit > 0) ||
+                  (item.dailyLimit !== undefined && item.inventoryCount !== undefined && (item.dailyLimit - item.inventoryCount) <= 0 && item.dailyLimit > 0);
+                  
+                const maxAvailable = (item.dailyLimit || 0) - (item.inventoryCount || 0);
+                const canIncrement = item.dailyLimit === undefined || quantity < maxAvailable;
+                
+                return (
+                  <View key={item.id} className="w-[47%] mb-4">
                     <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        hapticFeedback.light();
-                        toggleFavorite(item.id);
-                      }}
-                      className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full items-center justify-center backdrop-blur-sm"
+                      className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-white/5"
+                      onPress={() => !isSoldOut && handleAddToCart(item)}
+                      activeOpacity={isSoldOut ? 1 : 0.8}
                     >
-                      <Heart size={16} color="#ef4444" fill="#ef4444" />
-                    </TouchableOpacity>
-                    <View className="absolute bottom-2 left-2 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded flex-row items-center gap-1">
-                      <Star size={10} color="#eab308" fill="#eab308" />
-                      <Text className="text-white text-[10px] font-bold">{item.rating}</Text>
-                    </View>
-                  </View>
-
-                  <View className="p-3">
-                    <Text className="text-white font-bold text-sm mb-0.5" numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text className="text-gray-500 text-[10px] mb-3">{item.outletName}</Text>
-
-                    <View className="flex-row items-center justify-between">
-                      <Text className="text-primary font-bold">₹{item.price}</Text>
-                      <View className="w-7 h-7 bg-white/10 rounded-full items-center justify-center">
-                        <Plus size={14} color="white" />
+                      <View className="h-32 w-full relative">
+                        <Image
+                          source={{ uri: item.image }}
+                          className={`w-full h-full ${isSoldOut ? 'opacity-40' : ''}`}
+                          resizeMode="cover"
+                        />
+                        {isSoldOut && (
+                          <View className="absolute inset-0 items-center justify-center">
+                            <View className="bg-black/70 px-2 py-1 rounded-md border border-white/20">
+                              <Text className="text-[10px] text-white font-black">SOLD OUT</Text>
+                            </View>
+                          </View>
+                        )}
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            hapticFeedback.light();
+                            toggleFavorite(item.id);
+                          }}
+                          className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full items-center justify-center backdrop-blur-sm"
+                        >
+                          <Heart size={16} color="#ef4444" fill="#ef4444" />
+                        </TouchableOpacity>
+                        <View className="absolute bottom-2 left-2 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded flex-row items-center gap-1">
+                          <Star size={10} color="#eab308" fill="#eab308" />
+                          <Text className="text-white text-[10px] font-bold">{item.rating || '4.5'}</Text>
+                        </View>
                       </View>
-                    </View>
+
+                      <View className="p-3">
+                        <Text className="text-white font-bold text-sm mb-0.5" numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <Text className="text-gray-500 text-[10px] mb-3">{item.outletName || 'Outlet'}</Text>
+
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-primary font-bold">₹{item.price}</Text>
+                          
+                          {inCart ? (
+                            <View className="flex-row items-center gap-2 bg-black/40 rounded-full px-2 py-1 border border-primary/30">
+                              <TouchableOpacity 
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  hapticFeedback.light();
+                                  updateQuantity(item.id, -1);
+                                }}
+                              >
+                                {quantity === 1 ? (
+                                  <Minus size={12} color="#ef4444" />
+                                ) : (
+                                  <Minus size={12} color="white" />
+                                )}
+                              </TouchableOpacity>
+                              <Text className="text-white text-[10px] font-bold w-4 text-center">{quantity}</Text>
+                              <TouchableOpacity 
+                                onPress={(e) => {
+                                  if (!canIncrement) return;
+                                  e.stopPropagation();
+                                  hapticFeedback.light();
+                                  updateQuantity(item.id, 1);
+                                }}
+                                disabled={!canIncrement}
+                              >
+                                <Plus size={12} color={canIncrement ? "white" : "#4b5563"} />
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <TouchableOpacity 
+                              onPress={(e) => {
+                                if (isSoldOut) return;
+                                e.stopPropagation();
+                                hapticFeedback.selection();
+                                handleAddToCart(item);
+                              }}
+                              disabled={isSoldOut}
+                              className={`px-3 py-1.5 rounded-full ${isSoldOut ? 'bg-gray-700' : 'bg-primary'}`}
+                            >
+                              <Text className="text-white text-[10px] font-bold">{isSoldOut ? 'SOLD OUT' : 'ADD'}</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           ) : (
             <View className="items-center justify-center py-20">

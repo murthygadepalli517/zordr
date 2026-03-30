@@ -1,5 +1,3 @@
-import { Audio } from 'expo-av';
-
 // Sound URLs (using reliable CDNs or public assets)
 const SOUNDS = {
   order_placed: 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3', // Cash register
@@ -12,16 +10,54 @@ const SOUNDS = {
 
 export type SoundType = keyof typeof SOUNDS;
 
-export const playSound = async (type: SoundType) => {
+const getAudioEngine = () => {
   try {
-    const { sound } = await Audio.Sound.createAsync({ uri: SOUNDS[type] }, { shouldPlay: true });
+    // Try to require expo-audio. If it's not linked, this might throw or return empty.
+    const ExpoAudio = require('expo-audio');
+    if (ExpoAudio && ExpoAudio.createAudioPlayer) {
+      return { type: 'expo-audio' as const, engine: ExpoAudio };
+    }
+  } catch (e) {
+    // expo-audio not available
+  }
 
-    // Unload sound after playback to free resources
-    sound.setOnPlaybackStatusUpdate(async (status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        await sound.unloadAsync();
-      }
-    });
+  try {
+    const ExpoAV = require('expo-av');
+    if (ExpoAV && ExpoAV.Audio) {
+      return { type: 'expo-av' as const, engine: ExpoAV.Audio };
+    }
+  } catch (e) {
+    // expo-av not available
+  }
+
+  return null;
+};
+
+export const playSound = async (type: SoundType) => {
+  const audio = getAudioEngine();
+  
+  if (!audio) {
+    console.log('No audio engine available');
+    return;
+  }
+
+  try {
+    if (audio.type === 'expo-audio') {
+      const player = audio.engine.createAudioPlayer(SOUNDS[type]);
+      player.play();
+    } else {
+      // Fallback to expo-av
+      const { sound } = await audio.engine.Sound.createAsync(
+        { uri: SOUNDS[type] },
+        { shouldPlay: true }
+      );
+      // Clean up sound after playback
+      sound.setOnPlaybackStatusUpdate(async (status: any) => {
+        if (status.isLoaded && status.didJustFinish) {
+          await sound.unloadAsync();
+        }
+      });
+    }
   } catch (error) {
     console.log('Error playing sound:', error);
   }

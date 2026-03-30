@@ -488,7 +488,7 @@ borderColorClass = 'border-red-500/30';
 
         return (
           <TouchableOpacity
-            key={slot.time}
+            key={`${slot.startTime || ''}-${slot.endTime || ''}-${slot.time}`}
             disabled={isFull}
             onPress={() => {
               hapticFeedback.selection();
