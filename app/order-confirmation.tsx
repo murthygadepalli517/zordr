@@ -406,7 +406,9 @@ useEffect(() => {
     </Text>
 
     <Text className="text-orange-400 font-black text-lg">
-      {activeOrder.pickupSlotRange}
+      {/* {activeOrder.pickupSlotRange} */}
+            {activeOrder.picked_slot}
+
     </Text>
 
 
