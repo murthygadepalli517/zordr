@@ -5,14 +5,15 @@ import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, Clock, Store, Wallet, ShieldCheck } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Layout } from '../components/ui/layout';
-import { Text } from '../components/ui/text';
+// import { Text } from '../components/ui/text';
 import { useStore } from '../context/StoreContext';
 import { hapticFeedback } from '../utils/haptics';
 import { playSound } from '../utils/sound';
 import { SlideButton } from '../components/ui/SlideButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RazorpayCheckout from 'react-native-razorpay';
-
+import { CustomAlertModal } from '../components/ui/CustomAlertModal';
+import { Text } from 'react-native';
 
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -27,8 +28,19 @@ const params = useLocalSearchParams<{
 
 const orderType = params.orderType;
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+
+const [showCodAlert, setShowCodAlert] = useState(false);
+  
   const [timeSlots, setTimeSlots] = useState<
-    { time: string; available: boolean; remaining: number; isHighTraffic: boolean,     limit: number; 
+    { time: string; 
+      available: boolean;
+       remaining: number;
+        isHighTraffic: boolean,
+             limit: number;
+             startTime: string;
+    endTime: string;
+
  }[]
   >([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
@@ -40,6 +52,20 @@ const orderType = params.orderType;
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(
     params.appliedCoupon ? JSON.parse(params.appliedCoupon) : null
   );
+
+
+  const getNextSlot = () => {
+  if (!selectedTime || timeSlots.length === 0) return null;
+
+  const currentIndex = timeSlots.findIndex(
+    (slot) => `${slot.startTime}-${slot.endTime}` === selectedTime
+  );
+
+  if (currentIndex === -1) return null;
+
+  return timeSlots[currentIndex + 1] || null;
+};
+  
 
   // Load Last Payment Method
   useEffect(() => {
@@ -87,6 +113,7 @@ const orderType = params.orderType;
 
         try {
           const slots = await getOutletSlots(cart[0].outletId);
+          
 
           // Inject "Pickup Now" if applicable
                           if (allReadyToPick) {
@@ -97,6 +124,7 @@ const orderType = params.orderType;
                       remaining: firstSlotLimit,
                       isHighTraffic: false,
                       limit: firstSlotLimit,
+                      
                     });
                   }
 
@@ -322,6 +350,96 @@ const handleOrderSuccess = async () => {
           </View>
         </View>
 
+
+           {/* SECTION 4: PAYMENT METHOD */}
+        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
+          Payment Method
+        </Text>
+
+        <View className="gap-3 mb-8">
+          {/* COD Option (Prioritized) */}
+          <TouchableOpacity
+           onPress={() => {
+  hapticFeedback.selection();
+
+    setShowCodAlert(true);
+
+
+  // If a slot is selected → show alert
+  // if (selectedTime) {
+  //   setShowCodAlert(true);
+  // } else {
+  //   setPaymentMethod('COD');
+  // }
+}}
+            activeOpacity={0.8}
+            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'COD'
+              ? 'bg-[#1A1A1A] border-[#F59E0B]'
+              : 'bg-[#1A1A1A] border-white/5'
+              }`}
+          >
+            <View className="flex-row items-center gap-4">
+              <View
+                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'COD' ? 'bg-[#F59E0B]/20' : 'bg-white/5'
+                  }`}
+              >
+                <Wallet size={24} color={paymentMethod === 'COD' ? '#F59E0B' : '#6B7280'} />
+              </View>
+              <View>
+                <Text
+                  className={`text-lg font-bold ${paymentMethod === 'COD' ? 'text-white' : 'text-gray-400'}`}
+                >
+                  Pay at Counter (COD)
+                </Text>
+                <Text className="text-gray-500 text-xs">Cash or UPI at Outlet</Text>
+              </View>
+            </View>
+            {paymentMethod === 'COD' && (
+              <View className="w-6 h-6 rounded-full bg-[#F59E0B] items-center justify-center">
+                <View className="w-2.5 h-2.5 rounded-full bg-black" />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Prepaid Option */}
+          <TouchableOpacity
+            onPress={() => {
+              hapticFeedback.selection();
+              setPaymentMethod('Prepaid');
+            }}
+            activeOpacity={0.8}
+            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'Prepaid'
+              ? 'bg-[#1A1A1A] border-[#10B981]'
+              : 'bg-[#1A1A1A] border-white/5'
+              }`}
+          >
+            <View className="flex-row items-center gap-4">
+              <View
+                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'Prepaid' ? 'bg-[#10B981]/20' : 'bg-white/5'
+                  }`}
+              >
+                <ShieldCheck
+                  size={24}
+                  color={paymentMethod === 'Prepaid' ? '#10B981' : '#6B7280'}
+                />
+              </View>
+              <View>
+                <Text
+                  className={`text-lg font-bold ${paymentMethod === 'Prepaid' ? 'text-white' : 'text-gray-400'}`}
+                >
+                  Pay Online (Prepaid)
+                </Text>
+                <Text className="text-gray-500 text-xs">UPI, Cards, Netbanking</Text>
+              </View>
+            </View>
+            {paymentMethod === 'Prepaid' && (
+              <View className="w-6 h-6 rounded-full bg-[#10B981] items-center justify-center">
+                <View className="w-2.5 h-2.5 rounded-full bg-black" />
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {/* SECTION 2: TIME SELECTOR */}
         <View className="flex-row justify-between items-end mb-3 ml-1">
           <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -340,7 +458,10 @@ const handleOrderSuccess = async () => {
             <Text className="text-red-500">No slots available (Outlet Closed)</Text>
           ) : (
       (showAllSlots ? timeSlots : timeSlots.slice(0, 9)).map((slot) => {
-        const isSelected = selectedTime === slot.time;
+        // const isSelected = selectedTime === slot.time;
+
+        const isSelected =
+  selectedTime === `${slot.startTime}-${slot.endTime}`;
 
         const remaining = slot.remaining ?? 0;
       const limit = slot.limit ?? 10;
@@ -367,11 +488,11 @@ borderColorClass = 'border-red-500/30';
 
         return (
           <TouchableOpacity
-            key={slot.time}
+            key={`${slot.startTime || ''}-${slot.endTime || ''}-${slot.time}`}
             disabled={isFull}
             onPress={() => {
               hapticFeedback.selection();
-              setSelectedTime(slot.time);
+  setSelectedTime(`${slot.startTime}-${slot.endTime}`);
             }}
             activeOpacity={0.8}
             className={`w-[30%] h-16 rounded-xl items-center justify-center border relative overflow-hidden ${
@@ -393,7 +514,11 @@ borderColorClass = 'border-red-500/30';
             : 'text-white'
         }`}
       >
-        {slot.time}
+        {/* {slot.time} */}
+
+        {slot.startTime && slot.endTime
+    ? `${slot.startTime} - ${slot.endTime}`
+    : slot.time}
       </Text>
 
 
@@ -468,85 +593,7 @@ borderColorClass = 'border-red-500/30';
           </TouchableOpacity>
         )}
 
-        {/* SECTION 4: PAYMENT METHOD */}
-        <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">
-          Payment Method
-        </Text>
-
-        <View className="gap-3 mb-8">
-          {/* COD Option (Prioritized) */}
-          <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.selection();
-              setPaymentMethod('COD');
-            }}
-            activeOpacity={0.8}
-            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'COD'
-              ? 'bg-[#1A1A1A] border-[#F59E0B]'
-              : 'bg-[#1A1A1A] border-white/5'
-              }`}
-          >
-            <View className="flex-row items-center gap-4">
-              <View
-                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'COD' ? 'bg-[#F59E0B]/20' : 'bg-white/5'
-                  }`}
-              >
-                <Wallet size={24} color={paymentMethod === 'COD' ? '#F59E0B' : '#6B7280'} />
-              </View>
-              <View>
-                <Text
-                  className={`text-lg font-bold ${paymentMethod === 'COD' ? 'text-white' : 'text-gray-400'}`}
-                >
-                  Pay at Counter (COD)
-                </Text>
-                <Text className="text-gray-500 text-xs">Cash or UPI at Outlet</Text>
-              </View>
-            </View>
-            {paymentMethod === 'COD' && (
-              <View className="w-6 h-6 rounded-full bg-[#F59E0B] items-center justify-center">
-                <View className="w-2.5 h-2.5 rounded-full bg-black" />
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Prepaid Option */}
-          <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.selection();
-              setPaymentMethod('Prepaid');
-            }}
-            activeOpacity={0.8}
-            className={`p-5 rounded-[24px] border flex-row items-center justify-between ${paymentMethod === 'Prepaid'
-              ? 'bg-[#1A1A1A] border-[#10B981]'
-              : 'bg-[#1A1A1A] border-white/5'
-              }`}
-          >
-            <View className="flex-row items-center gap-4">
-              <View
-                className={`w-12 h-12 rounded-2xl items-center justify-center ${paymentMethod === 'Prepaid' ? 'bg-[#10B981]/20' : 'bg-white/5'
-                  }`}
-              >
-                <ShieldCheck
-                  size={24}
-                  color={paymentMethod === 'Prepaid' ? '#10B981' : '#6B7280'}
-                />
-              </View>
-              <View>
-                <Text
-                  className={`text-lg font-bold ${paymentMethod === 'Prepaid' ? 'text-white' : 'text-gray-400'}`}
-                >
-                  Pay Online (Prepaid)
-                </Text>
-                <Text className="text-gray-500 text-xs">UPI, Cards, Netbanking</Text>
-              </View>
-            </View>
-            {paymentMethod === 'Prepaid' && (
-              <View className="w-6 h-6 rounded-full bg-[#10B981] items-center justify-center">
-                <View className="w-2.5 h-2.5 rounded-full bg-black" />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+     
 
         {/* BILL SUMMARY */}
         <View className="mb-8 p-4 bg-white/5 rounded-2xl border border-white/5">
@@ -590,6 +637,43 @@ borderColorClass = 'border-red-500/30';
           </View>
         )}
       </View>
+
+<CustomAlertModal
+  visible={showCodAlert}
+  type="warning"
+  title="Confirm COD Timing"
+ message={
+  (() => {
+    const nextSlot = getNextSlot();
+
+    return nextSlot
+      ? `You are choosing Cash on Delivery. Your selected slot (${selectedTime}) will be used for PAYMENT. Pickup will be scheduled in the NEXT slot (${nextSlot.startTime} - ${nextSlot.endTime}). Do you want to continue with COD or switch to Prepaid?`
+      : `You are choosing Cash on Delivery. Your selected slot (${selectedTime}) will be used for PAYMENT. No further pickup slots are available. Please switch to Prepaid or choose an earlier slot.`;
+  })()
+}
+  onClose={() => setShowCodAlert(false)}
+  buttons={[
+    {
+      text: 'Switch to Prepaid',
+      style: 'cancel',
+      onPress: () => {
+        setPaymentMethod('Prepaid');
+      },
+    },
+    {
+      text: 'Continue COD',
+      style: 'destructive',
+      onPress: () => {
+        setPaymentMethod('COD');
+      },
+    },
+  ]}
+/>
+
+      
     </Layout >
+
+
+
   );
 }

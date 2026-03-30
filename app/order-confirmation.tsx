@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
+import { Image } from 'react-native';
 import {
   Check,
   ScanLine,
@@ -60,6 +61,12 @@ export default function OrderConfirmationScreen() {
   isReadyToPick: boolean;
   prepTime: number;
 };
+
+type Banner = {
+  id: string;
+  imageUrl?: string;
+  image?: string;
+};
   const router = useRouter();
   const params = useLocalSearchParams();
   const { orders, authToken } = useStore();
@@ -86,6 +93,10 @@ export default function OrderConfirmationScreen() {
   const glowOpacity = useSharedValue(0.4);
   const glowScale = useSharedValue(1);
   const checkmarkScale = useSharedValue(0.8);
+
+  const [banners, setBanners] = React.useState<Banner[]>([]);
+const [bannerIndex, setBannerIndex] = React.useState(0);
+const bannerScrollRef = React.useRef<ScrollView | null>(null);
 
   // Dynamic Status Configuration
   const getStatusInfo = (status: string) => {
@@ -134,6 +145,42 @@ export default function OrderConfirmationScreen() {
   const safeStatus = activeOrder?.status || 'pending';
   const statusInfo = getStatusInfo(safeStatus);
   const earnedPoints = activeOrder ? Math.floor(activeOrder.total * 0.1) : 0;
+
+  useEffect(() => {
+  const fetchBanners = async () => {
+    try {
+      const res = await fetch(
+        'https://zordr-backend.onrender.com/api/banners?type=home'
+      );
+      const json = await res.json();
+
+      if (json.success) {
+        setBanners(json.data || []);
+      }
+    } catch (err) {
+      console.log('Banner fetch error:', err);
+    }
+  };
+
+  fetchBanners();
+}, []);
+
+useEffect(() => {
+  if (!banners.length) return;
+
+  const interval = setInterval(() => {
+    const nextIndex = (bannerIndex + 1) % banners.length;
+
+    bannerScrollRef.current?.scrollTo({
+      x: nextIndex * 300, // width of banner
+      animated: true,
+    });
+
+    setBannerIndex(nextIndex);
+  }, 3000);
+
+  return () => clearInterval(interval);
+}, [bannerIndex, banners]);
 
   // 2. AUTO-REDIRECT ON PICKUP
   useEffect(() => {
@@ -359,10 +406,30 @@ export default function OrderConfirmationScreen() {
     </Text>
 
     <Text className="text-orange-400 font-black text-lg">
-      {activeOrder.picked_slot}
+      {activeOrder.pickupSlotRange}
     </Text>
 
+
+
   </View>
+)}
+
+{activeOrder.paymentMethod === 'COD' && activeOrder.paymentSlot && (
+  <>
+    <Text className="text-[10px] font-bold text-gray-500 uppercase tracking-[3px] mt-4 mb-2">
+      PAYMENT SLOT
+    </Text>
+
+    <View className="w-[85%] bg-[#252525] px-4 py-4 rounded-2xl flex-row justify-between items-center mb-2">
+      <Text className="text-gray-400 text-sm font-semibold">
+        TIME
+      </Text>
+
+      <Text className="text-yellow-400 font-black text-lg">
+        {activeOrder.paymentSlot}
+      </Text>
+    </View>
+  </>
 )}
 
 </View>
@@ -461,6 +528,58 @@ export default function OrderConfirmationScreen() {
           </View>
         </Animated.View>
 
+
+        {banners.length > 0 && (
+  <View className="w-full mb-6">
+    <ScrollView
+      ref={bannerScrollRef}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      onMomentumScrollEnd={(e) => {
+        const index = Math.round(
+          e.nativeEvent.contentOffset.x / 300
+        );
+        setBannerIndex(index);
+      }}
+    >
+      {banners.map((banner) => (
+        <TouchableOpacity key={banner.id} activeOpacity={0.9}>
+          <View
+            style={{
+              width: 300,
+              height: 140,
+              marginRight: 12,
+              borderRadius: 20,
+              overflow: 'hidden',
+            }}
+          >
+            <Image
+              source={{ uri: banner.imageUrl || banner.image }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+          </View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+
+    {/* Pagination dots */}
+    <View className="flex-row justify-center mt-2 gap-1">
+      {banners.map((_, i) => (
+        <View
+          key={i}
+          className={`h-1.5 rounded-full ${
+            i === bannerIndex
+              ? 'w-4 bg-orange-500'
+              : 'w-1.5 bg-white/30'
+          }`}
+        />
+      ))}
+    </View>
+  </View>
+)}
+
         {/* Sponsored Ad */}
         <Animated.View entering={FadeInDown.delay(700)} className="w-full mb-8">
           <Text className="text-center text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3">
@@ -482,6 +601,9 @@ export default function OrderConfirmationScreen() {
             </View>
           </TouchableOpacity>
         </Animated.View>
+
+
+
 
         {/* Back to Home */}
         <Animated.View entering={FadeInDown.delay(900)} className="w-full">

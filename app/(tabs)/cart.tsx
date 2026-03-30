@@ -25,7 +25,7 @@ import { TextInput, Modal } from 'react-native';
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { cart, updateQuantity, removeFromCart, stats } = useStore();
+  const { cart, updateQuantity, removeFromCart, stats, menuItems } = useStore();
   const [usePoints, setUsePoints] = useState(false);
 const insets = useSafeAreaInsets();
 const [orderType, setOrderType] = useState<'Dine In' | 'Takeaway' | null>('Dine In');  // Intercept back gesture to navigate to home
@@ -221,13 +221,18 @@ const [orderType, setOrderType] = useState<'Dine In' | 'Takeaway' | null>('Dine 
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 200 }}>
         {/* Items List */}
         <View className="gap-4 mb-8">
-          {cart.map((item) => (
-            <Animated.View
-              key={item.id}
-              layout={LayoutAnim.springify()}
-              entering={FadeInRight}
-              className="flex-row gap-4 bg-[#1A1A1A] p-3 rounded-[24px] border border-white/5"
-            >
+          {cart.map((item) => {
+            const menuItem = menuItems.find(m => m.id === item.id);
+            const maxAvailable = (menuItem?.dailyLimit || 0) - (menuItem?.inventoryCount || 0);
+            const canIncrement = menuItem ? item.quantity < maxAvailable : true;
+            
+            return (
+              <Animated.View
+                key={item.id}
+                layout={LayoutAnim.springify()}
+                entering={FadeInRight}
+                className="flex-row gap-4 bg-[#1A1A1A] p-3 rounded-[24px] border border-white/5"
+              >
               <Image source={{ uri: item.image }} className="w-24 h-24 rounded-2xl bg-gray-800" />
 
               <View className="flex-1 justify-between py-1">
@@ -259,14 +264,18 @@ const [orderType, setOrderType] = useState<'Dine In' | 'Takeaway' | null>('Dine 
                     <Text className="font-bold text-sm w-4 text-center text-white">
                       {item.quantity}
                     </Text>
-                    <TouchableOpacity onPress={() => handleIncrement(item.id)}>
-                      <Plus size={16} color="white" />
+                    <TouchableOpacity 
+                      onPress={() => handleIncrement(item.id)}
+                      disabled={!canIncrement}
+                    >
+                      <Plus size={16} color={canIncrement ? "white" : "#4b5563"} />
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
-            </Animated.View>
-          ))}
+              </Animated.View>
+            );
+          })}
         </View>
 
         {/* Loyalty Reward Card */}

@@ -15,12 +15,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.android.zordr",
+      "bundleIdentifier": "com.zordr.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CADisableMinimumFrameDurationOnPhone": true,
-         "NSCameraUsageDescription": "This app needs access to your camera to take profile photos.",
+        "NSCameraUsageDescription": "This app needs access to your camera to take profile photos.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select profile photos."
-
       }
     },
     "android": {
@@ -31,7 +31,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.android.zordr",
-       "permissions": [
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE"
       ]
@@ -49,7 +50,8 @@
           "color": "#ffffff"
         }
       ],
-      "./plugins/withHighRefreshRate"
+      "./plugins/withHighRefreshRate",
+      "expo-audio"
     ],
     "extra": {
       "router": {},

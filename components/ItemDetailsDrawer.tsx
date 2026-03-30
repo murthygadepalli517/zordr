@@ -162,14 +162,21 @@ export default function ItemDetailsDrawer({
   const isAvailable =
     item.isAvailable !== undefined
       ? item.isAvailable
-      : inventory
-        ? inventory[item.id] !== false
-        : true;
+      : (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.dailyLimit > 0)
+        ? item.inventoryCount < item.dailyLimit
+        : inventory
+          ? inventory[item.id] !== false
+          : true;
   const outlet = outlets.find((o: any) => o.id === item.outletId);
   const isOutletOpen = outlet ? outlet.isOpen : true;
   const canOrder = isAvailable && isOutletOpen;
 
   const handleIncrement = () => {
+    const maxAvailable = (item.dailyLimit || 0) - (item.inventoryCount || 0);
+    const hasLimit = item.dailyLimit !== undefined && item.inventoryCount !== undefined;
+    
+    if (hasLimit && quantity >= maxAvailable) return;
+    
     hapticFeedback.light();
     setQuantity((q) => q + 1);
   };
@@ -186,6 +193,9 @@ export default function ItemDetailsDrawer({
     // Pass item.id (string) and quantity
     setTimeout(() => onAddToCart(item.id, quantity), 250);
   };
+  
+  const maxAvailable = (item.dailyLimit || 0) - (item.inventoryCount || 0);
+  const canIncrementInDrawer = (item.dailyLimit === undefined || item.inventoryCount === undefined) || quantity < maxAvailable;
 
   return (
     <Modal
@@ -311,8 +321,8 @@ export default function ItemDetailsDrawer({
                     <Minus size={20} color={canOrder ? 'white' : 'gray'} />
                   </TouchableOpacity>
                   <Text className="text-white font-bold text-lg w-10 text-center">{quantity}</Text>
-                  <TouchableOpacity onPress={handleIncrement} disabled={!canOrder} className="p-2">
-                    <Plus size={20} color={canOrder ? 'white' : 'gray'} />
+                  <TouchableOpacity onPress={handleIncrement} disabled={!canOrder || !canIncrementInDrawer} className="p-2">
+                    <Plus size={20} color={canOrder && canIncrementInDrawer ? 'white' : 'gray'} />
                   </TouchableOpacity>
                 </View>
 

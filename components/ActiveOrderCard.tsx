@@ -24,9 +24,13 @@ interface ActiveOrderCardProps {
 
 export const ActiveOrderCard = ({ order, scrollY }: ActiveOrderCardProps) => {
     const router = useRouter();
+    const maxPrepTime = Math.max(...order.items.map(item => (item as any).prepTime || 0));
+    const createdAtTime = new Date(order.createdAt || (order as any).date).getTime();
+    const prepEndTime = new Date(createdAtTime + (maxPrepTime * 60000)).toISOString();
+
     const { timeLeftStr, progress } = usePrepTime(
-        order.updatedAt || order.createdAt || new Date().toISOString(),
-        order.pickupTime || '',
+        order.createdAt || (order as any).date || new Date().toISOString(),
+        order.status === 'preparing' ? prepEndTime : (order.pickupTime || prepEndTime),
         order.status
     );
 

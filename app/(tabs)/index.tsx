@@ -54,7 +54,6 @@ import { Text } from '../../components/ui/text';
 import ItemDetailsDrawer from '../../components/ItemDetailsDrawer';
 import { AnimatedItem } from '../../components/AnimatedItem';
 import { ReadyToPickRibbon } from '../../components/ReadyToPickRibbon';
-import { usePrepTime } from '../../components/PrepTimeProgressBar';
 import { ActiveOrderCard } from '../../components/ActiveOrderCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -100,7 +99,11 @@ const { user } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  
+  const [banners, setBanners] = useState<Banner[]>([]);
+const [bannerIndex, setBannerIndex] = useState(0);
+
+
+const bannerScrollRef = useRef<ScrollView | null>(null);
 
   const [isOutletDropdownOpen, setIsOutletDropdownOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -118,7 +121,23 @@ const insets = useSafeAreaInsets();
     setRefreshing(false);
   }, [refreshApp]);
 
-  const campusOutlets = outlets.filter((o) => o.campus === selectedCampus);
+  type Banner = {
+  id: string;
+  title: string | null;
+  imageUrl: string;
+  targetUrl: string | null;
+  type: string;
+  isActive: boolean;
+  order: number;
+  link: string | null;
+  image: string;
+  bannerType: string;
+  bannerTitle: string | null;
+};
+
+  // const campusOutlets = outlets.filter((o) => o.campus === selectedCampus);
+
+  const campusOutlets = outlets;
 
   const chevronRotation = useSharedValue(0);
   const scrollY = useSharedValue(0);
@@ -131,6 +150,22 @@ const insets = useSafeAreaInsets();
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
   });
+
+
+  const fetchBanners = async () => {
+  try {
+    const res = await fetch(
+      'https://zordr-backend.onrender.com/api/banners?type=home'
+    );
+    const json = await res.json();
+
+    if (json.success) {
+      setBanners(json.data || []);
+    }
+  } catch (err) {
+    console.log('Banner fetch error:', err);
+  }
+};
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -146,6 +181,28 @@ const insets = useSafeAreaInsets();
       Keyboard.dismiss();
     }, [])
   );
+
+  useEffect(() => {
+  fetchBanners();
+}, []);
+
+
+useEffect(() => {
+  if (!banners.length) return;
+
+  const interval = setInterval(() => {
+    const nextIndex = (bannerIndex + 1) % banners.length;
+
+    bannerScrollRef.current?.scrollTo({
+      x: nextIndex * width,
+      animated: true,
+    });
+
+    setBannerIndex(nextIndex);
+  }, 3000);
+
+  return () => clearInterval(interval);
+}, [bannerIndex, banners]);
 
  useEffect(() => {
   if (campusOutlets.length === 0) return;
@@ -537,6 +594,55 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                     </ScrollView>
                   </View>
 
+
+
+                  {banners.length > 0 && (
+  <View className="mt-3">
+    <ScrollView
+      ref={bannerScrollRef}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      onMomentumScrollEnd={(e) => {
+        const index = Math.round(
+          e.nativeEvent.contentOffset.x / width
+        );
+        setBannerIndex(index);
+      }}
+    >
+      {banners.map((banner) => (
+        <TouchableOpacity
+          key={banner.id}
+          activeOpacity={0.9}
+        >
+          <Image
+            source={{ uri: banner.imageUrl || banner.image }}
+            style={{
+              width: width,
+              height: 160,
+            }}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+
+    {/* Pagination dots */}
+    <View className="flex-row justify-center mt-2 gap-1">
+      {banners.map((_, i) => (
+        <View
+          key={i}
+          className={`h-1.5 rounded-full ${
+            i === bannerIndex
+              ? 'w-4 bg-primary'
+              : 'w-1.5 bg-white/30'
+          }`}
+        />
+      ))}
+    </View>
+  </View>
+)}
+
                   {/* ACTIVE ORDERS (Dynamic Island Style) */}
                   {activeOrders.length > 0 && (
                     <View className="mt-2 w-full px-0 pb-0 bg-transparent">
@@ -601,42 +707,61 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                           onScrollEndDrag={onDealsScrollEndDrag}
                           onMomentumScrollEnd={onDealsMomentumScrollEnd}
                         >
-                          {loopedDeals.map((item, idx) => (
-                            <TouchableOpacity
-                              key={`${item.id}-${idx}`}
-                              className="w-[200px] bg-[#1A1A1A] rounded-xl overflow-hidden border border-white/5"
-                              onPress={() => openItemDetails(item)}
-                              activeOpacity={0.8}
-                            >
-                              <View className="absolute top-2 left-2 bg-red-600 px-2 py-1 rounded z-10">
-                                <Text className="text-white text-[10px] font-bold">
-                                  {item.discount}
-                                </Text>
-                              </View>
-                              <Image
-                                source={{ uri: item.image }}
-                                className="w-full h-24"
-                                resizeMode="cover"
-                              />
-                              <View className="p-3">
-                                <Text
-                                  className="text-white font-bold text-sm mb-1"
-                                  numberOfLines={1}
-                                >
-                                  {item.name}
-                                </Text>
-                                <Text className="text-gray-400 text-[10px] mb-2">
-                                  {item.outletName}
-                                </Text>
-                                <View className="flex-row items-center gap-2">
-                                  <Text className="text-primary font-bold">₹{item.price}</Text>
-                                  <Text className="text-gray-600 text-[10px] line-through">
-                                    ₹{item.originalPrice}
-                                  </Text>
+                          {loopedDeals.map((item, idx) => {
+                            const isSoldOut = 
+                              (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.inventoryCount >= item.dailyLimit && item.dailyLimit > 0) ||
+                              (item.dailyLimit !== undefined && item.inventoryCount !== undefined && (item.dailyLimit - item.inventoryCount) <= 0 && item.dailyLimit > 0);
+                            
+                            return (
+                              <TouchableOpacity
+                                key={`${item.id}-${idx}`}
+                                className={`w-[200px] bg-[#1A1A1A] rounded-xl overflow-hidden border border-white/5 ${isSoldOut ? 'opacity-80' : ''}`}
+                                onPress={() => openItemDetails(item)}
+                                activeOpacity={0.8}
+                              >
+                                {item.discount && (
+                                  <View className="absolute top-2 left-2 bg-red-600 px-2 py-1 rounded z-10">
+                                    <Text className="text-white text-[10px] font-bold">
+                                      {item.discount}
+                                    </Text>
+                                  </View>
+                                )}
+                                <View className="relative">
+                                  <Image
+                                    source={{ uri: item.image }}
+                                    className={`w-full h-24 ${isSoldOut ? 'opacity-40' : ''}`}
+                                    resizeMode="cover"
+                                  />
+                                  {isSoldOut && (
+                                    <View className="absolute inset-0 items-center justify-center">
+                                      <View className="bg-black/70 px-2 py-1 rounded-md border border-white/20">
+                                        <Text className="text-[10px] text-white font-black">SOLD OUT</Text>
+                                      </View>
+                                    </View>
+                                  )}
                                 </View>
-                              </View>
-                            </TouchableOpacity>
-                          ))}
+                                <View className="p-3">
+                                  <Text
+                                    className="text-white font-bold text-sm mb-1"
+                                    numberOfLines={1}
+                                  >
+                                    {item.name}
+                                  </Text>
+                                  <Text className="text-gray-400 text-[10px] mb-2">
+                                    {item.outletName}
+                                  </Text>
+                                  <View className="flex-row items-center gap-2">
+                                    <Text className="text-primary font-bold">₹{item.price}</Text>
+                                    {item.originalPrice && (
+                                      <Text className="text-gray-600 text-[10px] line-through">
+                                        ₹{item.originalPrice}
+                                      </Text>
+                                    )}
+                                  </View>
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     )}
@@ -665,6 +790,13 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                           const cartItem = cart.find((c) => c.id === item.id);
                           const inCart = !!cartItem;
                           const quantity = cartItem?.quantity || 0;
+                          
+                          const isSoldOut = 
+                            (item.inventoryCount !== undefined && item.dailyLimit !== undefined && item.inventoryCount >= item.dailyLimit && item.dailyLimit > 0) ||
+                            (item.dailyLimit !== undefined && item.inventoryCount !== undefined && (item.dailyLimit - item.inventoryCount) <= 0 && item.dailyLimit > 0);
+                          const maxAvailable = (item.dailyLimit || 0) - (item.inventoryCount || 0);
+                          const canIncrement = quantity < maxAvailable || item.dailyLimit === undefined;
+
                           return (
                             <View key={item.id}>
                               <TouchableOpacity
@@ -688,22 +820,31 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                                   />
                                 </TouchableOpacity>
 
-                                <View>
-                                  <Image
-                                    source={{ uri: item.image }}
-                                    className="w-28 h-28 rounded-2xl bg-gray-800"
-                                  />
-                                  {isDifferentOutlet && (
-                                    <View className="absolute top-0 left-0 bg-primary px-2 py-1 rounded-tl-2xl rounded-br-lg z-10">
-                                      <Text className="text-[8px] text-white font-bold">
-                                        Others
-                                      </Text>
+                                  <View>
+                                    <View className="relative">
+                                      <Image
+                                        source={{ uri: item.image }}
+                                        className={`w-28 h-28 rounded-2xl bg-gray-800 ${isSoldOut ? 'opacity-40' : ''}`}
+                                      />
+                                      {isSoldOut && (
+                                        <View className="absolute inset-0 items-center justify-center">
+                                          <View className="bg-black/70 px-2 py-1 rounded-md border border-white/20">
+                                            <Text className="text-[10px] text-white font-black">SOLD OUT</Text>
+                                          </View>
+                                        </View>
+                                      )}
                                     </View>
-                                  )}
-                                  {item.isReadyToPick && (
-                                    <ReadyToPickRibbon isDifferentOutlet={isDifferentOutlet} />
-                                  )}
-                                </View>
+                                    {isDifferentOutlet && (
+                                      <View className="absolute top-0 left-0 bg-primary px-2 py-1 rounded-tl-2xl rounded-br-lg z-10">
+                                        <Text className="text-[8px] text-white font-bold">
+                                          Others
+                                        </Text>
+                                      </View>
+                                    )}
+                                    {item.isReadyToPick && (
+                                      <ReadyToPickRibbon isDifferentOutlet={isDifferentOutlet} />
+                                    )}
+                                  </View>
 
                                 <View className="flex-1 justify-between py-1">
                                   <View>
@@ -733,17 +874,19 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
                                     </View>
 
               {!inCart ? (
-  <TouchableOpacity
-    onPress={async (e) => {
-      e.stopPropagation();
-      hapticFeedback.selection();
-      await addToCart(item, 1);
-    }}
-    className="bg-primary px-4 py-2 rounded-full"
-  >
-    <Text className="text-white text-xs font-bold">ADD</Text>
-  </TouchableOpacity>
-) : (
+                <TouchableOpacity
+                  onPress={async (e) => {
+                    if (isSoldOut) return;
+                    e.stopPropagation();
+                    hapticFeedback.selection();
+                    await addToCart(item, 1);
+                  }}
+                  disabled={isSoldOut}
+                  className={`${isSoldOut ? 'bg-gray-700' : 'bg-primary'} px-4 py-2 rounded-full`}
+                >
+                  <Text className="text-white text-xs font-bold">{isSoldOut ? 'SOLD OUT' : 'ADD'}</Text>
+                </TouchableOpacity>
+              ) : (
    <View
                             className="flex-row items-center gap-3 bg-black/40 rounded-full px-3 py-1.5 border"
                             style={{ borderColor: '#ea580c', borderWidth: 1.5 }}
@@ -769,12 +912,14 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
 
     <TouchableOpacity
       onPress={(e) => {
+        if (!canIncrement) return;
         e.stopPropagation();
         hapticFeedback.light();
         updateQuantity(item.id, 1);
       }}
+      disabled={!canIncrement}
     >
-      <Plus size={16} color="white" />
+      <Plus size={16} color={canIncrement ? "white" : "#4b5563"} />
     </TouchableOpacity>
   </View>
 )}
@@ -931,3 +1076,4 @@ const showShimmer = isMenuLoading && menuItems.length === 0;
     </View>
   );
 }
+
