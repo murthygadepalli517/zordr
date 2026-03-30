@@ -150,7 +150,7 @@ const bannerScrollRef = React.useRef<ScrollView | null>(null);
   const fetchBanners = async () => {
     try {
       const res = await fetch(
-        'https://zordr-backend.onrender.com/api/banners?type=offers'
+        'https://zordr-backend.onrender.com/api/banners?type=confirmation'
       );
       const json = await res.json();
 
